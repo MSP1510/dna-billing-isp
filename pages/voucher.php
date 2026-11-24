@@ -1,20 +1,17 @@
 <?php cekAkses(['owner','admin','kasir']);
 function acakKodeVoucher($p=8,$t='angka'){
-  $k = ($t=='huruf')?'ABCDEFGHJKLMNPQRSTUVWXYZ':(($t=='campur')?'23456789ABCDEFGHJKLMNPQRSTUVWXYZ':'0123456789');
-  $r=''; $m=strlen($k)-1; for($i=0;$i<$p;$i++) $r.=$k[random_int(0,$m)]; return $r;
+  $k=($t=='huruf')?'ABCDEFGHJKLMNPQRSTUVWXYZ':(($t=='campur')?'23456789ABCDEFGHJKLMNPQRSTUVWXYZ':'0123456789');
+  $r=''; $m=strlen($k)-1; for($i=0;$i<$p;$i++)$r.=$k[random_int(0,$m)]; return $r;
 }
 function waktuKeDetik($s){
-  $d=0;
-  if(preg_match('/(\d+)w/',$s,$m))$d+=$m*604800; if(preg_match('/(\d+)d/',$s,$m))$d+=$m*86400;
-  if(preg_match('/(\d+)h/',$s,$m))$d+=$m*3600; if(preg_match('/(\d+)m/',$s,$m))$d+=$m*60;
-  if(preg_match('/(\d+)s/',$s,$m))$d+=$m; return $d;
+  $d=0; if(preg_match('/(\d+)w/',$s,$m))$d+=$m*604800; if(preg_match('/(\d+)d/',$s,$m))$d+=$m*86400;
+  if(preg_match('/(\d+)h/',$s,$m))$d+=$m*3600; if(preg_match('/(\d+)m/',$s,$m))$d+=$m*60; if(preg_match('/(\d+)s/',$s,$m))$d+=$m; return $d;
 }
 function detikKeTeks($s){
   if($s<=0)return 'Habis'; $d=floor($s/86400);$s%=86400; $h=floor($s/3600);$s%=3600; $m=floor($s/60);
   return ($d>0?$d.'d ':'').($h>0?$h.'h ':'').$m.'m';
 }
 $map_pkt=[]; $qp_all=mysqli_query($conn,"SELECT * FROM paket"); while($rp=mysqli_fetch_assoc($qp_all))$map_pkt[$rp['nama_paket']]=$rp;
-
 if(isset($_POST['gen_vcr'])){
   $pk=mysqli_fetch_assoc(mysqli_query($conn,"SELECT * FROM paket WHERE id=".(int)$_POST['paket_id']));
   $rid=(int)($_POST['router_id']??1); $rt=mysqli_fetch_assoc(mysqli_query($conn,"SELECT * FROM routers WHERE id=$rid"));
@@ -97,7 +94,7 @@ $filtered=array_filter($mt_list,function($u)use($fs,$fp,$fc){ if($fs!==''&&strip
 <div class="card">
   <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;margin-bottom:8px">
     <h4>Users Hotspot (<?= count($filtered) ?> / <?= count($mt_list) ?>)</h4>
-    <div style="display:flex;gap:5px"><a href="cetak_voucher.php?mode=baru" target="_blank" class="btn" style="padding:5px 9px;font-size:11px">🖨️ Default</a><a href="cetak_voucher.php?mode=semua&prof=<?= urlencode($fp) ?>" target="_blank" class="btn btn-g" style="padding:5px 9px;font-size:11px">🖨️ QR Semua</a></div>
+    <div style="display:flex;gap:5px"><a href="cetak_voucher.php?mode=baru" target="_blank" class="btn" style="padding:5px 9px;font-size:11px">Default</a><a href="cetak_voucher.php?mode=semua&prof=<?= urlencode($fp) ?>" target="_blank" class="btn btn-g" style="padding:5px 9px;font-size:11px">QR Semua</a></div>
   </div>
   <form method="GET" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px">
     <input type="hidden" name="page" value="voucher">
@@ -110,9 +107,9 @@ $filtered=array_filter($mt_list,function($u)use($fs,$fp,$fc){ if($fs!==''&&strip
     <tr><th>Aksi</th><th>Name</th><th>QR</th><th>Profile</th><th>Uptime</th><th>Sisa Waktu</th><th>Comment</th></tr>
     <?php foreach($filtered as $u): $sc=$u['online']?'#22c55e':($u['used']?'#f59e0b':'#0284c7'); $st=$u['online']?'ON':($u['used']?'PAKAI':'BARU'); ?>
     <tr>
-      <td style="white-space:nowrap"><a href="?page=voucher&del_mt_user=<?= urlencode($u['name']) ?>&mtid=<?= urlencode($u['mtid']) ?>&rid=<?= $u['rid'] ?>" onclick="return confirm('Hapus user <?= htmlspecialchars($u['name']) ?>?')" class="btn btn-r" style="padding:2px 7px;font-size:12px;font-weight:900">−</a> <span style="background:<?= $sc ?>;color:#fff;padding:2px 5px;border-radius:4px;font-size:9px;font-weight:700"><?= $st ?></span></td>
+      <td style="white-space:nowrap"><a href="?page=voucher&del_mt_user=<?= urlencode($u['name']) ?>&mtid=<?= urlencode($u['mtid']) ?>&rid=<?= $u['rid'] ?>" onclick="return confirm('Hapus user <?= htmlspecialchars($u['name']) ?>?')" class="btn btn-r" style="padding:2px 7px;font-size:12px;font-weight:900">-</a> <span style="background:<?= $sc ?>;color:#fff;padding:2px 5px;border-radius:4px;font-size:9px;font-weight:700"><?= $st ?></span></td>
       <td style="font-family:monospace;font-size:13px;font-weight:800"><?= htmlspecialchars($u['name']) ?></td>
-      <td><a href="cetak_voucher.php?kode=<?= urlencode($u['name']) ?>" target="_blank" style="text-decoration:none;font-size:15px">🖨️📱</a></td>
+      <td><a href="cetak_voucher.php?kode=<?= urlencode($u['name']) ?>" target="_blank" style="text-decoration:none;font-size:12px;font-weight:700;color:#0284c7">QR</a></td>
       <td><b><?= htmlspecialchars($u['prof']) ?></b></td>
       <td><small><?= htmlspecialchars($u['up']) ?></small></td>
       <td><span style="background:#fef3c7;color:#92400e;padding:2px 6px;border-radius:4px;font-size:10px;font-weight:700;white-space:nowrap"><?= htmlspecialchars($u['sisa']) ?></span></td>
@@ -122,12 +119,12 @@ $filtered=array_filter($mt_list,function($u)use($fs,$fp,$fc){ if($fs!==''&&strip
   </table></div>
 </div>
 <div class="card" style="border-top:4px solid #334155">
-  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><h4>☰ Hotspot Log</h4><a href="?page=voucher" class="btn" style="padding:4px 8px;font-size:11px">Refresh</a></div>
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><h4>Hotspot Log</h4><a href="?page=voucher" class="btn" style="padding:4px 8px;font-size:11px">Refresh</a></div>
   <div style="overflow-x:auto"><table>
     <tr><th>Time</th><th>Users (IP)</th><th>Messages</th></tr>
     <?php foreach($hs_logs as $lg): $rm=$lg['msg']; $ui='-'; $pm=$rm;
-      if(preg_match('/^([^\s(]+)\s*\(([^)]+)\):\s*(.+)$/',$rm,$m)){$ui="<b>".htmlspecialchars($m)."</b><br><small style='color:#64748b'>(".htmlspecialchars($m).")</small>";$pm=$m;}
-      elseif(preg_match('/^([^\s:]+):\s*(.+)$/',$rm,$m)){$ui="<b>".htmlspecialchars($m)."</b>";$pm=$m;}
+      if(preg_match('/^([^\s(]+)\s*\(([^)]+)\):\s*(.+)$/',$rm,$m)){$ui="<b>".htmlspecialchars($m[1])."</b><br><small style='color:#64748b'>(".htmlspecialchars($m[2]).")</small>";$pm=$m[3];}
+      elseif(preg_match('/^([^\s:]+):\s*(.+)$/',$rm,$m)){$ui="<b>".htmlspecialchars($m[1])."</b>";$pm=$m[2];}
       $mc=(stripos($pm,'logged in')!==false||stripos($pm,'log in')!==false)?'#00a65a':((stripos($pm,'failed')!==false||stripos($pm,'timeout')!==false)?'#dd4b39':'#334155');
     ?>
     <tr><td style="font-size:11px;white-space:nowrap;color:#475569"><?= htmlspecialchars($lg['time']) ?></td><td style="font-size:12px"><?= $ui ?></td><td style="font-size:12px;color:<?= $mc ?>;font-weight:600"><?= htmlspecialchars($pm) ?></td></tr>
