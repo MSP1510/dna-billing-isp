@@ -126,19 +126,3 @@ $filtered=array_filter($mt_list,function($u)use($fs,$fp,$fc){ if($fs!==''&&strip
     <?php endforeach; ?>
   </table></div>
 </div>
-<div class="card" style="border-top:4px solid #334155">
-  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><h4>Hotspot Log</h4><a href="?page=voucher" class="btn" style="padding:4px 8px;font-size:11px">Refresh</a></div>
-  <div style="overflow-x:auto"><table>
-    <tr><th>Time</th><th>Users (IP)</th><th>Messages</th></tr>
-    <?php foreach($hs_logs as $lg): $rm=$lg['msg']; $ui='-'; $pm=$rm;
-      if(strpos($rm, ': ')!==false){
-        $pos=strpos($rm, ': '); $head=substr($rm, 0, $pos); $pm=substr($rm, $pos+2);
-        if(strpos($head, '(')!==false){ $u_nm=trim(strtok($head, '(')); $u_ip=trim(strtok(')')); $ui="<b>".htmlspecialchars($u_nm)."</b><br><small style='color:#64748b'>(".htmlspecialchars($u_ip).")</small>"; }
-        else { $ui="<b>".htmlspecialchars(trim($head))."</b>"; }
-      }
-      $mc=(stripos($pm,'logged in')!==false||stripos($pm,'log in')!==false)?'#00a65a':((stripos($pm,'failed')!==false||stripos($pm,'timeout')!==false)?'#dd4b39':'#334155');
-    ?>
-    <tr><td style="font-size:11px;white-space:nowrap;color:#475569"><?= htmlspecialchars($lg['time']) ?></td><td style="font-size:12px"><?= $ui ?></td><td style="font-size:12px;color:<?= $mc ?>;font-weight:600"><?= htmlspecialchars($pm) ?></td></tr>
-    <?php endforeach; ?>
-  </table></div>
-</div>
