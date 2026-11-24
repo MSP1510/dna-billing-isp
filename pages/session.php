@@ -1,139 +1,146 @@
 <?php cekAkses(['owner','admin','teknisi']);
-if (isset($_GET['kick_u']) && isset($_GET['nas'])) {
-    $nas_id = (int)$_GET['nas'];
-    $ku = $_GET['kick_u'];
-    $kt = $_GET['tipe'] ?? 'ppp';
-    $rt = mysqli_fetch_assoc(mysqli_query($conn, "SELECT * FROM routers WHERE id=$nas_id"));
+function durasiKeDetik($str) {
+    $d = 0;
+    if (preg_match('/(\d+)w/', $str, $m)) $d += (int)$m[1] * 604800;
+    if (preg_match('/(\d+)d/', $str, $m)) $d += (int)$m[1] * 86400;
+    if (preg_match('/(\d+)h/', $str, $m)) $d += (int)$m[1] * 3600;
+    if (preg_match('/(\d+)m/', $str, $m)) $d += (int)$m[1] * 60;
+    if (preg_match('/(\d+)s/', $str, $m)) $d += (int)$m[1];
+    return $d;
+}
+
+// Kick manual user (PPPoE atau Hotspot)
+if (isset($_GET['kick_ppp']) && isset($_GET['rid'])) {
+    $rid = (int)$_GET['rid']; $usr = $_GET['kick_ppp'];
+    $rt = mysqli_fetch_assoc(mysqli_query($conn, "SELECT * FROM routers WHERE id=$rid"));
     if ($rt && $api->connect($rt['ip_address'], $rt['username'], $rt['password'], $rt['port'])) {
-        if ($kt == 'static') {
-            $api->comm('/ip/firewall/address-list/add', ['list' => 'ISOLIR', 'address' => $ku, 'comment' => 'Kick Static dari Billing']);
-        } else {
-            $path = ($kt == 'hotspot') ? '/ip/hotspot/active' : '/ppp/active';
-            $res = $api->comm("$path/print");
-            $id_kick = ''; $cur_id = ''; $cur_nm = '';
-            foreach ($res as $l) {
-                if ($l == '!re') { if ($cur_nm == $ku) $id_kick = $cur_id; $cur_id = ''; $cur_nm = ''; }
-                elseif (strpos($l, '=.id=') === 0) $cur_id = substr($l, 5);
-                elseif (strpos($l, '=name=') === 0) $cur_nm = substr($l, 6);
-                elseif (strpos($l, '=user=') === 0) $cur_nm = substr($l, 6);
-            }
-            if ($cur_nm == $ku) $id_kick = $cur_id;
-            if ($id_kick) $api->comm("$path/remove", ['.id' => $id_kick]);
+        $act = $api->comm('/ppp/active/print'); $cur = [];
+        foreach ($act as $l) {
+            if ($l == '!re') { if (($cur['name']??'') == $usr && !empty($cur['id'])) $api->comm('/ppp/active/remove', ['=.id='.$cur['id']]); $cur = []; }
+            elseif (strpos($l,'=.id=')===0) $cur['id'] = substr($l,5);
+            elseif (strpos($l,'=name=')===0) $cur['name'] = substr($l,6);
         }
+        if (($cur['name']??'') == $usr && !empty($cur['id'])) $api->comm('/ppp/active/remove', ['=.id='.$cur['id']]);
         $api->disconnect();
     }
     echo "<script>location.href='?page=session';</script>"; exit;
 }
-
-// Ambil daftar pelanggan Static IP dari database
-$static_map = [];
-$qs_db = mysqli_query($conn, "SELECT nama, ip_static, router_id FROM pelanggan WHERE tipe_layanan='static' AND ip_static != ''");
-while ($sp = mysqli_fetch_assoc($qs_db)) {
-    $static_map[trim($sp['ip_static'])] = $sp['nama'];
+if (isset($_GET['kick_hs']) && isset($_GET['rid'])) {
+    $rid = (int)$_GET['rid']; $usr = $_GET['kick_hs'];
+    $rt = mysqli_fetch_assoc(mysqli_query($conn, "SELECT * FROM routers WHERE id=$rid"));
+    if ($rt && $api->connect($rt['ip_address'], $rt['username'], $rt['password'], $rt['port'])) {
+        $act = $api->comm('/ip/hotspot/active/print'); $cur = [];
+        foreach ($act as $l) {
+            if ($l == '!re') { if (($cur['user']??'') == $usr && !empty($cur['id'])) $api->comm('/ip/hotspot/active/remove', ['=.id='.$cur['id']]); $cur = []; }
+            elseif (strpos($l,'=.id=')===0) $cur['id'] = substr($l,5);
+            elseif (strpos($l,'=user=')===0) $cur['user'] = substr($l,6);
+        }
+        if (($cur['user']??'') == $usr && !empty($cur['id'])) $api->comm('/ip/hotspot/active/remove', ['=.id='.$cur['id']]);
+        $api->disconnect();
+    }
+    echo "<script>location.href='?page=session';</script>"; exit;
+}
+// Pembersihan otomatis user Hotspot yang sudah melewati batas durasi (RADIUS radacct & MikroTik)
+$hapus_cnt = 0;
+$q_exp = mysqli_query($conn, "SELECT v.id, v.kode, COALESCE(p.durasi_detik, 0) as batas, COALESCE((SELECT SUM(acctsessiontime) FROM radacct r WHERE r.username=v.kode), 0) as terpakai FROM voucher v LEFT JOIN paket p ON v.profil=p.nama_paket WHERE v.status='terjual'");
+$exp_codes = [];
+while ($vx = mysqli_fetch_assoc($q_exp)) {
+    if ($vx['batas'] > 0 && $vx['terpakai'] >= $vx['batas']) {
+        $kd = mysqli_real_escape_string($conn, $vx['kode']);
+        mysqli_query($conn, "DELETE FROM radcheck WHERE username='$kd'");
+        mysqli_query($conn, "DELETE FROM radreply WHERE username='$kd'");
+        mysqli_query($conn, "DELETE FROM radusergroup WHERE username='$kd'");
+        mysqli_query($conn, "DELETE FROM voucher WHERE id=".(int)$vx['id']);
+        $exp_codes[$vx['kode']] = true;
+        $hapus_cnt++;
+    }
 }
 
-$sessions = [];
+$ses_ppp = []; $ses_hs = [];
 $qr = mysqli_query($conn, "SELECT * FROM routers ORDER BY id ASC");
 while ($rt = mysqli_fetch_assoc($qr)) {
     if ($api->connect($rt['ip_address'], $rt['username'], $rt['password'], $rt['port'])) {
-        // 1. PPPoE Active
-        $ppp = $api->comm('/ppp/active/print');
-        $cur = [];
-        foreach ($ppp as $l) {
-            if ($l == '!re') { if (!empty($cur['u'])) $sessions[] = $cur; $cur = ['nas'=>$rt['nama_nas'],'nas_id'=>$rt['id'],'tipe'=>'PPPoE','kick_id'=>'']; }
-            elseif (strpos($l,'=name=')===0) { $cur['u'] = substr($l,6); $cur['kick_id'] = $cur['u']; }
-            elseif (strpos($l,'=caller-id=')===0) $cur['mac'] = substr($l,11);
-            elseif (strpos($l,'=address=')===0) $cur['ip'] = substr($l,9);
-            elseif (strpos($l,'=uptime=')===0) $cur['up'] = substr($l,8);
+        // Ambil PPPoE Active
+        $act = $api->comm('/ppp/active/print'); $cur = [];
+        foreach ($act as $l) {
+            if ($l == '!re') { if(!empty($cur['name'])){ $cur['router']=$rt['nama_router']; $cur['rid']=$rt['id']; $ses_ppp[]=$cur; } $cur=[]; }
+            elseif (strpos($l,'=name=')===0) $cur['name']=substr($l,6);
+            elseif (strpos($l,'=address=')===0) $cur['ip']=substr($l,9);
+            elseif (strpos($l,'=uptime=')===0) $cur['up']=substr($l,8);
+            elseif (strpos($l,'=caller-id=')===0) $cur['mac']=substr($l,11);
         }
-        if (!empty($cur['u'])) $sessions[] = $cur;
+        if(!empty($cur['name'])){ $cur['router']=$rt['nama_router']; $cur['rid']=$rt['id']; $ses_ppp[]=$cur; }
 
-        // 2. Hotspot Active
-        $hs = $api->comm('/ip/hotspot/active/print');
-        $cur = [];
-        foreach ($hs as $l) {
-            if ($l == '!re') { if (!empty($cur['u'])) $sessions[] = $cur; $cur = ['nas'=>$rt['nama_nas'],'nas_id'=>$rt['id'],'tipe'=>'Hotspot','kick_id'=>'']; }
-            elseif (strpos($l,'=user=')===0) { $cur['u'] = substr($l,6); $cur['kick_id'] = $cur['u']; }
-            elseif (strpos($l,'=mac-address=')===0) $cur['mac'] = substr($l,13);
-            elseif (strpos($l,'=address=')===0) $cur['ip'] = substr($l,9);
-            elseif (strpos($l,'=uptime=')===0) $cur['up'] = substr($l,8);
-        }
-        if (!empty($cur['u'])) $sessions[] = $cur;
-
-        // 3. Static IP Active (Cek tabel IP ARP & DHCP Leases MikroTik)
-        $arp = $api->comm('/ip/arp/print');
-        $cur = [];
-        foreach ($arp as $l) {
+        // Hapus user hotspot lokal di MikroTik yang sudah mencapai limit-uptime / expired
+        $hsu = $api->comm('/ip/hotspot/user/print'); $cur = [];
+        foreach ($hsu as $l) {
             if ($l == '!re') {
-                $ip_a = trim($cur['ip'] ?? '');
-                if (!empty($ip_a) && isset($static_map[$ip_a]) && ($cur['comp'] ?? 'false') == 'true') {
-                    $sessions[] = [
-                        'u' => $static_map[$ip_a],
-                        'kick_id' => $ip_a,
-                        'tipe' => 'Static IP',
-                        'nas' => $rt['nama_nas'],
-                        'nas_id' => $rt['id'],
-                        'mac' => $cur['mac'] ?? '-',
-                        'ip' => $ip_a,
-                        'up' => 'Terhubung (ARP)'
-                    ];
+                $lim = durasiKeDetik($cur['lim'] ?? ''); $up = durasiKeDetik($cur['up'] ?? '');
+                if (!empty($cur['name']) && (isset($exp_codes[$cur['name']]) || ($lim > 0 && $up >= $lim))) {
+                    if (!empty($cur['id'])) $api->comm('/ip/hotspot/user/remove', ['=.id='.$cur['id']]);
+                    $exp_codes[$cur['name']] = true; $hapus_cnt++;
                 }
                 $cur = [];
             }
-            elseif (strpos($l,'=address=')===0) $cur['ip'] = substr($l,9);
-            elseif (strpos($l,'=mac-address=')===0) $cur['mac'] = substr($l,13);
-            elseif (strpos($l,'=complete=')===0) $cur['comp'] = substr($l,10);
+            elseif (strpos($l,'=.id=')===0) $cur['id']=substr($l,5);
+            elseif (strpos($l,'=name=')===0) $cur['name']=substr($l,6);
+            elseif (strpos($l,'=limit-uptime=')===0) $cur['lim']=substr($l,14);
+            elseif (strpos($l,'=uptime=')===0) $cur['up']=substr($l,8);
         }
-        $ip_a = trim($cur['ip'] ?? '');
-        if (!empty($ip_a) && isset($static_map[$ip_a]) && ($cur['comp'] ?? 'false') == 'true') {
-            $sessions[] = [
-                'u' => $static_map[$ip_a],
-                'kick_id' => $ip_a,
-                'tipe' => 'Static IP',
-                'nas' => $rt['nama_nas'],
-                'nas_id' => $rt['id'],
-                'mac' => $cur['mac'] ?? '-',
-                'ip' => $ip_a,
-                'up' => 'Terhubung (ARP)'
-            ];
+
+        // Ambil Hotspot Active & putuskan jika termasuk yang expired
+        $hsa = $api->comm('/ip/hotspot/active/print'); $cur = [];
+        foreach ($hsa as $l) {
+            if ($l == '!re') {
+                if (!empty($cur['user'])) {
+                    if (isset($exp_codes[$cur['user']]) && !empty($cur['id'])) { $api->comm('/ip/hotspot/active/remove', ['=.id='.$cur['id']]); }
+                    else { $cur['router']=$rt['nama_router']; $cur['rid']=$rt['id']; $ses_hs[]=$cur; }
+                }
+                $cur = [];
+            }
+            elseif (strpos($l,'=.id=')===0) $cur['id']=substr($l,5);
+            elseif (strpos($l,'=user=')===0) $cur['user']=substr($l,6);
+            elseif (strpos($l,'=address=')===0) $cur['ip']=substr($l,9);
+            elseif (strpos($l,'=uptime=')===0) $cur['up']=substr($l,8);
+            elseif (strpos($l,'=session-time-left=')===0) $cur['left']=substr($l,19);
+            elseif (strpos($l,'=mac-address=')===0) $cur['mac']=substr($l,13);
+        }
+        if (!empty($cur['user'])) {
+            if (isset($exp_codes[$cur['user']]) && !empty($cur['id'])) { $api->comm('/ip/hotspot/active/remove', ['=.id='.$cur['id']]); }
+            else { $cur['router']=$rt['nama_router']; $cur['rid']=$rt['id']; $ses_hs[]=$cur; }
         }
         $api->disconnect();
     }
 }
 ?>
-<div class="card">
-  <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:10px">
-    <h4>Session User Aktif Real-Time (<?= count($sessions) ?> Online)</h4>
-    <div style="display:flex;gap:6px">
-      <input type="text" id="cariSes" onkeyup="filterSes()" placeholder="Cari nama / IP / MAC..." style="width:190px">
-      <a href="?page=session" class="btn">Refresh</a>
-    </div>
-  </div>
-  <div style="overflow-x:auto">
-  <table id="tblSes">
-    <tr><th>Nama / Username</th><th>Tipe</th><th>Router [NAS]</th><th>MAC Address</th><th>IP Address</th><th>Status / Uptime</th><th>Aksi</th></tr>
-    <?php if (empty($sessions)): ?>
-      <tr><td colspan="7" style="text-align:center;padding:15px;color:#64748b">Belum ada user PPPoE, Hotspot, maupun Static IP yang aktif.</td></tr>
-    <?php else: foreach ($sessions as $s):
-      $bg = ($s['tipe']=='PPPoE') ? '#0284c7' : (($s['tipe']=='Static IP') ? '#8b5cf6' : '#00a65a');
-      $t_param = ($s['tipe']=='Static IP') ? 'static' : strtolower($s['tipe']);
-    ?>
-      <tr>
-        <td><b><?= htmlspecialchars($s['u']) ?></b></td>
-        <td><span style="background:<?= $bg ?>;color:#fff;padding:2px 6px;border-radius:4px;font-size:10px;font-weight:700"><?= $s['tipe'] ?></span></td>
-        <td><?= htmlspecialchars($s['nas']) ?></td>
-        <td style="font-family:monospace;font-size:11px"><?= htmlspecialchars($s['mac']??'-') ?></td>
-        <td style="font-family:monospace;font-weight:700;color:#0284c7"><?= htmlspecialchars($s['ip']??'-') ?></td>
-        <td><?= htmlspecialchars($s['up']??'-') ?></td>
-        <td><a href="?page=session&kick_u=<?= urlencode($s['kick_id']) ?>&nas=<?= $s['nas_id'] ?>&tipe=<?= $t_param ?>" onclick="return confirm('Putus / Isolir sesi user ini sekarang?')" class="btn btn-r" style="padding:4px 8px;font-size:11px"><?= $s['tipe']=='Static IP'?'Isolir':'Kick' ?></a></td>
-      </tr>
-    <?php endforeach; endif; ?>
-  </table>
-  </div>
+<?php if($hapus_cnt > 0): ?>
+<div class="card" style="background:#fef2f2;border-left:5px solid #ef4444;color:#991b1b;font-size:12px">
+  <b>Pembersihan Otomatis:</b> <?= $hapus_cnt ?> voucher/user Hotspot yang telah melewati batas durasi berhasil dihapus otomatis dari MikroTik & database!
 </div>
-<script>
-function filterSes(){
-  let q=document.getElementById('cariSes').value.toLowerCase();
-  document.querySelectorAll('#tblSes tr').forEach((r,i)=>{if(i>0)r.style.display=r.innerText.toLowerCase().includes(q)?'':'none';});
-}
-</script>
+<?php endif; ?>
+
+<div class="card" style="border-top:4px solid #0284c7">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+    <h4>1. Session PPPoE Online (<?= count($ses_ppp) ?> Aktif)</h4>
+    <a href="?page=session" class="btn" style="padding:4px 8px;font-size:11px">Refresh & Bersihkan Expired</a>
+  </div>
+  <div style="overflow-x:auto"><table>
+    <tr><th>Router</th><th>User PPPoE</th><th>IP Address</th><th>Uptime</th><th>MAC</th><th>Aksi</th></tr>
+    <?php foreach($ses_ppp as $s): ?>
+    <tr><td><?= htmlspecialchars($s['router']) ?></td><td><b><?= htmlspecialchars($s['name']) ?></b></td><td><?= htmlspecialchars($s['ip']??'-') ?></td><td><span style="color:#00a65a;font-weight:700"><?= htmlspecialchars($s['up']??'-') ?></span></td><td><small><?= htmlspecialchars($s['mac']??'-') ?></small></td><td><a href="?page=session&kick_ppp=<?= urlencode($s['name']) ?>&rid=<?= $s['rid'] ?>" onclick="return confirm('Putuskan koneksi PPPoE ini?')" class="btn btn-r" style="padding:3px 7px;font-size:10px">Kick</a></td></tr>
+    <?php endforeach; ?>
+    <?php if(empty($ses_ppp)) echo "<tr><td colspan='6' style='text-align:center;color:#64748b'>Tidak ada session PPPoE aktif</td></tr>"; ?>
+  </table></div>
+</div>
+
+<div class="card" style="border-top:4px solid #f59e0b">
+  <h4>2. Session Voucher Hotspot Online (<?= count($ses_hs) ?> Aktif)</h4>
+  <small style="color:#64748b">User Hotspot yang telah mencapai batas durasi otomatis dihapus dari MikroTik dan RADIUS saat halaman dimuat.</small>
+  <div style="overflow-x:auto;margin-top:8px"><table>
+    <tr><th>Router</th><th>Kode / User Hotspot</th><th>IP Address</th><th>Uptime</th><th>Sisa Waktu</th><th>Aksi</th></tr>
+    <?php foreach($ses_hs as $h): ?>
+    <tr><td><?= htmlspecialchars($h['router']) ?></td><td><b><?= htmlspecialchars($h['user']) ?></b></td><td><?= htmlspecialchars($h['ip']??'-') ?></td><td><?= htmlspecialchars($h['up']??'-') ?></td><td><span style="background:#fef3c7;color:#92400e;padding:2px 6px;border-radius:4px;font-size:10px;font-weight:700"><?= htmlspecialchars($h['left']??'Unlimited') ?></span></td><td><a href="?page=session&kick_hs=<?= urlencode($h['user']) ?>&rid=<?= $h['rid'] ?>" onclick="return confirm('Putuskan user Hotspot ini?')" class="btn btn-r" style="padding:3px 7px;font-size:10px">Kick</a></td></tr>
+    <?php endforeach; ?>
+    <?php if(empty($ses_hs)) echo "<tr><td colspan='6' style='text-align:center;color:#64748b'>Tidak ada user Hotspot aktif</td></tr>"; ?>
+  </table></div>
+</div>
