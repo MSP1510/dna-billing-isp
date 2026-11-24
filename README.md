@@ -46,3 +46,8 @@ Lalu masuk ke menu **Tool Sistem** di dalam aplikasi untuk mengunggah **Logo Iko
   * `ISI_IP_STB_ARMBIAN` : IP LAN milik STB Armbian Anda (misal `10.20.30.50`)
   * `ISI_IP_GATEWAY_MIKROTIK` : IP interface MikroTik yang satu segmen dengan STB (misal `10.20.30.1`)
   * `ISI_SECRET_RADIUS` : Secret yang sama dengan kolom Radius Secret di menu **Router [ NAS ]** aplikasi
+
+* **Contoh Perintah yang Sudah Diisi:**
+```rsc
+/radius remove [find comment="DNA_BILLING_RADIUS"]; /radius add service=hotspot,ppp address=10.20.30.50 src-address=10.20.30.1 secret=dna12345 timeout=3000ms comment="DNA_BILLING_RADIUS"; /radius incoming set accept=yes port=3799; /ip hotspot profile set [find] use-radius=yes
+```
