@@ -24,7 +24,7 @@ if (isset($_GET['del_nas'])) {
     <button name="add_nas" class="btn btn-g">+ Tambah NAS</button>
   </form>
   <?php endif; ?>
-  <table>
+  <div style="overflow-x:auto;width:100%"><table style="min-width:560px;font-size:12px">
     <tr><th>ID</th><th>Nama NAS</th><th>Merek / Board</th><th>IP Address : Port</th><th>CPU</th><th>RAM</th><th>Status</th><th>Aksi</th></tr>
     <?php
     $qr = mysqli_query($conn, "SELECT * FROM routers ORDER BY id ASC");
@@ -55,5 +55,5 @@ if (isset($_GET['del_nas'])) {
         <td><a href='?page=router&del_nas=$r[id]' onclick=\"return confirm('Hapus NAS ini?')\" class='btn btn-r' style='padding:4px 8px;font-size:11px'>Hapus</a></td></tr>";
     }
     ?>
-  </table>
+  </table></div>
 </div>
