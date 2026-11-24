@@ -3,12 +3,12 @@
 # D.N.A_Billing — Sistem Manajemen ISP, RT/RW Net & MikroTik
 **D.N.A_NETWORK by MSP_NET**
 
-Sistem manajemen billing ISP, auto-isolir MikroTik (RouterOS v6 & v7), FreeRADIUS, WhatsApp Gateway mandiri, cetak voucher A4 (42 kartu/lembar), pemetaan GIS ODP/POP real-time, dan Remote Modem ONT untuk server **STB Armbian (ARM64)**.
+Sistem manajemen billing ISP, auto-isolir MikroTik (RouterOS v6 & v7), FreeRADIUS, WhatsApp Gateway mandiri, cetak voucher A4 (42 kartu/lembar), pemetaan GIS Satelit ODP/POP real-time, dan Remote Modem ONT untuk server **STB Armbian (ARM64)**.
 
 ---
 
 ## Cara Instalasi Otomatis di STB Armbian Baru
-1. Masuk ke terminal SSH STB Armbian sebagai `root`, lalu jalankan perintah berikut (ganti `TOKEN_GITHUB_ANDA` dengan Personal Access Token GitHub):
+1. Masuk ke terminal SSH STB Armbian sebagai `root`, lalu salin & tempel perintah berikut:
 ```bash
 apt update && apt install -y git
 rm -rf /var/www/html/*
