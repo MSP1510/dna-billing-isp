@@ -1,159 +1,136 @@
 <?php cekAkses(['owner','admin','teknisi']);
-mysqli_query($conn, "ALTER TABLE odp ADD COLUMN IF NOT EXISTS foto_odp VARCHAR(255) NULL");
-
 if (isset($_POST['add_odp'])) {
+    $jns = mysqli_real_escape_string($conn, $_POST['jenis'] ?? 'ODP');
+    $pid = !empty($_POST['parent_id']) ? (int)$_POST['parent_id'] : "NULL";
     $nm  = mysqli_real_escape_string($conn, $_POST['nama_odp']);
     $lok = mysqli_real_escape_string($conn, $_POST['lokasi']);
     $kap = (int)$_POST['kapasitas'];
-    $lat = mysqli_real_escape_string($conn, trim($_POST['lat']));
-    $lng = mysqli_real_escape_string($conn, trim($_POST['lng']));
-    $foto_path = '';
-    if (!empty($_POST['b64_odp'])) {
-        $raw = base64_decode(preg_replace('#^data:image/\w+;base64,#i', '', $_POST['b64_odp']));
-        if ($raw) {
-            $fn = "odp_" . time() . ".jpg";
-            file_put_contents("/var/www/html/uploads/" . $fn, $raw);
-            $foto_path = "uploads/" . $fn;
-        }
-    }
-    mysqli_query($conn, "INSERT INTO odp (nama_odp,lokasi,kapasitas,lat,lng,foto_odp) VALUES ('$nm','$lok',$kap,'$lat','$lng','$foto_path')");
+    $lat = mysqli_real_escape_string($conn, str_replace(',', '.', trim($_POST['lat'])));
+    $lng = mysqli_real_escape_string($conn, str_replace(',', '.', trim($_POST['lng'])));
+    mysqli_query($conn, "INSERT INTO odp (jenis,parent_id,nama_odp,lokasi,kapasitas,lat,lng) VALUES ('$jns',$pid,'$nm','$lok',$kap,'$lat','$lng')");
+    echo "<script>location.href='?page=odp';</script>"; exit;
+}
+if (isset($_POST['save_pel_gis'])) {
+    $id_p  = (int)$_POST['pel_id'];
+    $odp_p = !empty($_POST['odp_id']) ? (int)$_POST['odp_id'] : "NULL";
+    $lat_p = mysqli_real_escape_string($conn, str_replace(',', '.', trim($_POST['lat_p'])));
+    $lng_p = mysqli_real_escape_string($conn, str_replace(',', '.', trim($_POST['lng_p'])));
+    mysqli_query($conn, "UPDATE pelanggan SET odp_id=$odp_p, lat='$lat_p', lng='$lng_p' WHERE id=$id_p");
+    echo "<script>location.href='?page=odp';</script>"; exit;
+}
+if (isset($_GET['reset_pel'])) {
+    mysqli_query($conn, "UPDATE pelanggan SET odp_id=NULL, lat=NULL, lng=NULL WHERE id=".(int)$_GET['reset_pel']);
     echo "<script>location.href='?page=odp';</script>"; exit;
 }
 if (isset($_GET['del_odp'])) {
-    $id = (int)$_GET['del_odp'];
-    mysqli_query($conn, "DELETE FROM odp WHERE id=$id");
+    mysqli_query($conn, "DELETE FROM odp WHERE id=".(int)$_GET['del_odp']);
     echo "<script>location.href='?page=odp';</script>"; exit;
 }
-
+$online_ppp = []; $online_arp = [];
+$qr = mysqli_query($conn, "SELECT * FROM routers ORDER BY id ASC");
+while ($rt = mysqli_fetch_assoc($qr)) {
+    if ($api->connect($rt['ip_address'], $rt['username'], $rt['password'], $rt['port'])) {
+        $act = $api->comm('/ppp/active/print'); $cur = [];
+        foreach ($act as $l) {
+            if ($l == '!re') { if(!empty($cur['name'])) $online_ppp[$cur['name']] = true; $cur = []; }
+            elseif (strpos($l,'=name=')===0) $cur['name'] = substr($l,6);
+        }
+        if (!empty($cur['name'])) $online_ppp[$cur['name']] = true;
+        $arp = $api->comm('/ip/arp/print'); $cur = [];
+        foreach ($arp as $l) {
+            if ($l == '!re') { if(!empty($cur['ip']) && ($cur['comp']??'false')=='true') $online_arp[trim($cur['ip'])] = true; $cur = []; }
+            elseif (strpos($l,'=address=')===0) $cur['ip'] = substr($l,9);
+            elseif (strpos($l,'=complete=')===0) $cur['comp'] = substr($l,10);
+        }
+        if (!empty($cur['ip']) && ($cur['comp']??'false')=='true') $online_arp[trim($cur['ip'])] = true;
+        $api->disconnect();
+    }
+}
 $odp_list = [];
-$qo = mysqli_query($conn, "SELECT o.*, (SELECT COUNT(id) FROM pelanggan p WHERE p.odp_id=o.id) as terpakai FROM odp o ORDER BY o.id DESC");
+$qo = mysqli_query($conn, "SELECT o.*, (SELECT COUNT(id) FROM pelanggan p WHERE p.odp_id=o.id) as terpakai FROM odp o ORDER BY o.id ASC");
 while ($r = mysqli_fetch_assoc($qo)) $odp_list[] = $r;
-$sl = chr(47) . chr(47);
+$pel_list = []; $cnt_on = 0; $cnt_off = 0; $cnt_iso = 0;
+$qp = mysqli_query($conn, "SELECT p.id, p.nama, p.pppoe_user, p.ip_static, p.tipe_layanan, p.status, p.odp_id, p.lat, p.lng, o.nama_odp FROM pelanggan p LEFT JOIN odp o ON p.odp_id=o.id WHERE p.nama NOT LIKE '<hotspot-%' ORDER BY p.nama ASC");
+while ($p = mysqli_fetch_assoc($qp)) {
+    $is_st = (($p['tipe_layanan'] ?? 'pppoe') == 'static');
+    $is_on = $is_st ? (!empty($p['ip_static']) && isset($online_arp[trim($p['ip_static'])])) : (!empty($p['pppoe_user']) && isset($online_ppp[trim($p['pppoe_user'])]));
+    if (($p['status'] ?? '') == 'isolir') { $st_net = 'isolir'; $cnt_iso++; }
+    elseif ($is_on) { $st_net = 'online'; $cnt_on++; }
+    else { $st_net = 'offline'; $cnt_off++; }
+    $p['st_net'] = $st_net; $p['akun'] = $is_st ? ($p['ip_static'] ?? '-') : ($p['pppoe_user'] ?? '-');
+    $pel_list[] = $p;
+}
 ?>
-<link rel="stylesheet" href="assets/leaflet.css"/>
-<script src="assets/leaflet.js"></script>
-
+<link rel="stylesheet" href="assets/leaflet.css"/><script src="assets/leaflet.js"></script>
+<style>@keyframes kabelJalan{to{stroke-dashoffset:-24}}.kabel-online{stroke-dasharray:8,6;animation:kabelJalan .8s linear infinite}.pin-node{display:flex;align-items:center;justify-content:center;border-radius:50%;color:#fff;font-weight:900;font-size:9px;box-shadow:0 0 6px #000;border:2px solid #fff}</style>
 <div class="card">
-  <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;margin-bottom:8px">
-    <h4>1. Peta Satelit Lokasi ODP / POP</h4>
-    <div style="display:flex;gap:4px">
-      <button type="button" onclick="setLayer('sat')" class="btn" style="padding:4px 8px;font-size:11px">Satelit</button>
-      <button type="button" onclick="setLayer('osm')" class="btn btn-g" style="padding:4px 8px;font-size:11px">Jalan Raya</button>
-    </div>
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+    <h4>1. Peta Satelit POP, ODC, ODP & Pelanggan</h4>
+    <div><button type="button" onclick="setMode('sat')" class="btn" style="padding:4px 8px;font-size:11px">Satelit</button> <button type="button" onclick="setMode('osm')" class="btn btn-g" style="padding:4px 8px;font-size:11px">Jalan Raya</button></div>
   </div>
-  <div id="mapOdp" style="width:100%;height:290px;border-radius:8px;border:1px solid #cbd5e1;z-index:1"></div>
-  <small style="color:#64748b;display:block;margin-top:5px">Ketuk titik mana saja di peta untuk mengisi koordinat tiang ODP secara otomatis.</small>
+  <div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px">
+    <button type="button" onclick="setF('all')" class="btn" style="padding:3px 8px;font-size:10px">Semua (<?= count($pel_list) ?>)</button>
+    <button type="button" onclick="setF('online')" class="btn btn-g" style="padding:3px 8px;font-size:10px">Online (<?= $cnt_on ?>)</button>
+    <button type="button" onclick="setF('offline')" class="btn btn-w" style="padding:3px 8px;font-size:10px">Offline (<?= $cnt_off ?>)</button>
+    <button type="button" onclick="setF('isolir')" class="btn btn-r" style="padding:3px 8px;font-size:10px">Isolir (<?= $cnt_iso ?>)</button>
+  </div>
+  <div id="mapGis" style="width:100%;height:340px;border-radius:8px;border:1px solid #cbd5e1;z-index:1"></div>
 </div>
-
-<div class="card">
-  <h4>2. Tambah Titik ODP / POP Baru</h4>
-  <form method="POST" style="margin-top:10px">
-    <input type="hidden" name="b64_odp" id="b64_odp">
-    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:8px;margin-bottom:8px">
-      <input name="nama_odp" placeholder="Nama ODP (mis: ODP-01-BUARAN)" required>
-      <input name="lokasi" placeholder="Alamat / Patokan Tiang" required>
-      <select name="kapasitas">
-        <option value="8">Kapasitas: 8 Port (1:8)</option>
-        <option value="16" selected>Kapasitas: 16 Port (1:16)</option>
-        <option value="24">Kapasitas: 24 Port (1:24)</option>
-        <option value="4">Kapasitas: 4 Port (1:4)</option>
-      </select>
-    </div>
-    <div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:8px">
-      <input name="lat" id="lat_odp" value="-6.068500" placeholder="Latitude" style="width:140px">
-      <input name="lng" id="lng_odp" value="106.541200" placeholder="Longitude" style="width:140px">
-      <button type="button" onclick="ambilGpsOdp()" class="btn btn-w">Ambil GPS HP Sekarang</button>
-    </div>
-    <div style="margin-bottom:10px">
-      <small><b>Foto Box ODP di Tiang (Opsional):</b></small><br>
-      <input type="file" accept="image/*" onchange="kompresOdp(this)">
-      <span id="st_odp" style="font-size:11px;color:#00a65a"></span>
-    </div>
-    <button name="add_odp" class="btn btn-g">+ Simpan Titik ODP</button>
+<div class="card" style="border-left:5px solid #0284c7;background:#f0f9ff">
+  <h4>2. Daftarkan Server Utama (POP), Box ODC & Box ODP</h4>
+  <form method="POST" style="margin-top:8px">
+    <select name="jenis"><option value="POP">Server Utama (POP)</option><option value="ODC">Box ODC (Distribusi)</option><option value="ODP" selected>Box ODP (Tiang Pelanggan)</option></select>
+    <select name="parent_id"><option value="">-- Induk Jalur (POP / ODC) --</option><?php foreach($odp_list as $o) if(($o['jenis']??'ODP')!='ODP') echo "<option value='$o[id]'>[$o[jenis]] $o[nama_odp]</option>"; ?></select>
+    <input name="nama_odp" placeholder="Nama (mis: POP-PUSAT / ODC-01 / ODP-01)" required>
+    <input name="lokasi" placeholder="Alamat / Patokan Lokasi" required>
+    <input name="kapasitas" type="number" value="16" placeholder="Jumlah Port">
+    <input type="hidden" name="lat" id="lat_odp" required><input type="hidden" name="lng" id="lng_odp" required>
+    <div style="display:flex;gap:6px;align-items:center;margin-top:6px"><span id="st_gps_odp" style="font-size:11px;color:#0284c7;font-weight:700">Ketuk peta / GPS HP dulu</span><button type="button" onclick="ambilGps('odp')" class="btn btn-w">GPS HP</button><button name="add_odp" class="btn">+ Simpan Perangkat</button></div>
   </form>
 </div>
-
-<div class="card">
-  <h4>3. Daftar Kapasitas Port & Lokasi ODP / POP</h4>
-  <div style="overflow-x:auto">
-  <table>
-    <tr><th>Nama ODP</th><th>Alamat / Patokan</th><th>Status Port</th><th>Peta & Foto</th><th>Aksi</th></tr>
-    <?php foreach ($odp_list as $d):
-      $sisa = max(0, (int)$d['kapasitas'] - (int)$d['terpakai']);
-      $clr  = ($sisa == 0) ? '#dd4b39' : (($sisa <= 2) ? '#f39c12' : '#00a65a');
-    ?>
-    <tr>
-      <td><b><?= htmlspecialchars($d['nama_odp']) ?></b></td>
-      <td><?= htmlspecialchars($d['lokasi']) ?></td>
-      <td><span style="background:<?= $clr ?>;color:#fff;padding:2px 7px;border-radius:4px;font-size:11px;font-weight:700">Terpakai <?= $d['terpakai'] ?> / <?= $d['kapasitas'] ?> (Sisa <?= $sisa ?> Port)</span></td>
-      <td style="font-size:11px">
-        <?php if(!empty($d['lat']) && !empty($d['lng'])): ?>
-          <button type="button" onclick="fokusPeta(<?= $d['lat'] ?>,<?= $d['lng'] ?>)" class="btn" style="padding:3px 7px;font-size:10px">Fokus Peta</button>
-          <a href="https:<?= $sl ?>://google.com<?= $d['lat'] ?>,<?= $d['lng'] ?>" target="_blank" style="color:#0284c7;font-weight:700;margin-left:4px">Rute GPS</a>
-        <?php else: ?> - <?php endif; ?>
-        <?php if(!empty($d['foto_odp'])): ?><br><a href="<?= htmlspecialchars($d['foto_odp']) ?>" target="_blank" style="color:#00a65a">Lihat Foto ODP</a><?php endif; ?>
-      </td>
-      <td><a href="?page=odp&del_odp=<?= $d['id'] ?>" onclick="return confirm('Hapus ODP ini?')" class="btn btn-r" style="padding:4px 8px;font-size:11px">Hapus</a></td>
-    </tr>
-    <?php endforeach; ?>
-  </table>
-  </div>
+<div class="card" style="border-left:5px solid #22c55e;background:#f0fdf4">
+  <h4>3. Akuratkan Titik Rumah & Jalur ODP Pelanggan</h4>
+  <form method="POST" style="margin-top:8px">
+    <input type="hidden" name="pel_id" id="hid_pel_id" required>
+    <input type="text" id="cariDropPel" oninput="cariPelVis()" placeholder="Ketik nama / IP pelanggan (mis: Faisal)..." autocomplete="off" style="border:2px solid #22c55e;background:#fff;font-weight:700;margin-bottom:2px">
+    <div id="hasilCariPel" style="display:none;max-height:170px;overflow-y:auto;background:#fff;border:1px solid #cbd5e1;border-radius:6px;margin-bottom:6px"></div>
+    <div id="badgePelOk" style="font-size:11px;color:#00a65a;font-weight:700;margin-bottom:6px"></div>
+    <select name="odp_id" id="sel_pel_odp"><option value="">-- Pilih Box ODP --</option><?php foreach($odp_list as $o) echo "<option value='$o[id]'>[$o[jenis]] $o[nama_odp] ($o[lokasi])</option>"; ?></select>
+    <input type="hidden" name="lat_p" id="lat_pel" required><input type="hidden" name="lng_p" id="lng_pel" required>
+    <div style="display:flex;gap:6px;align-items:center;margin-top:6px"><span id="st_gps_pel" style="font-size:11px;color:#00a65a;font-weight:700">Ketuk rumah di peta / GPS HP</span><button type="button" onclick="ambilGps('pel')" class="btn btn-w">GPS HP</button><button name="save_pel_gis" onclick="if(!document.getElementById('hid_pel_id').value){alert('Ketik & pilih nama pelanggan dulu!');return false;}if(!document.getElementById('lat_pel').value){alert('Ketuk atap rumah di peta satelit dulu!');return false;}" class="btn btn-g">Simpan Titik Rumah</button></div>
+  </form>
 </div>
-
+<div class="card">
+  <h4>4. Daftar Perangkat POP / ODC / ODP (<?= count($odp_list) ?>)</h4>
+  <div style="overflow-x:auto"><table><tr><th>Tipe</th><th>Nama</th><th>Lokasi</th><th>Port</th><th>Aksi</th></tr>
+  <?php foreach($odp_list as $d): ?><tr><td><b><?= $d['jenis']??'ODP' ?></b></td><td><?= htmlspecialchars($d['nama_odp']) ?></td><td><?= htmlspecialchars($d['lokasi']) ?></td><td><?= $d['terpakai'] ?>/<?= $d['kapasitas'] ?></td><td><a href="?page=odp&del_odp=<?= $d['id'] ?>" class="btn btn-r" style="padding:3px 7px;font-size:10px">Hapus</a></td></tr><?php endforeach; ?>
+  </table></div>
+</div>
+<div class="card">
+  <h4>5. Daftar Pelanggan & Koordinat (<?= count($pel_list) ?>)</h4>
+  <div style="overflow-x:auto"><table><tr><th>Status</th><th>Nama Pelanggan</th><th>Jalur ODP</th><th>Koordinat</th><th>Aksi</th></tr>
+  <?php foreach($pel_list as $p): $c=$p['st_net']=='online'?'#22c55e':($p['st_net']=='isolir'?'#ef4444':'#f59e0b'); ?>
+  <tr><td><span style="background:<?= $c ?>;color:#fff;padding:2px 6px;border-radius:4px;font-size:10px"><?= strtoupper($p['st_net']) ?></span></td><td><b><?= htmlspecialchars($p['nama']) ?></b><br><small><?= htmlspecialchars($p['akun']) ?></small></td><td><?= htmlspecialchars($p['nama_odp']??'-') ?></td><td style="font-size:11px"><?= !empty($p['lat'])?"$p[lat], $p[lng]":"Belum" ?></td><td><button type="button" onclick="pilihPelItem(<?= $p['id'] ?>);window.scrollTo({top:0,behavior:'smooth'})" class="btn btn-g" style="padding:4px 8px;font-size:11px">Set</button> <?php if(!empty($p['lat'])): ?><a href="?page=odp&reset_pel=<?= $p['id'] ?>" class="btn btn-r" style="padding:4px 8px;font-size:11px">Hapus</a><?php endif; ?></td></tr>
+  <?php endforeach; ?></table></div>
+</div>
 <script>
-const sl = String.fromCharCode(47, 47);
-const map = L.map('mapOdp').setView([-6.0685, 106.5412], 15);
-const layerSat = L.tileLayer('https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', {maxZoom: 20});
-const layerOsm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {maxZoom: 19});
-layerSat.addTo(map);
-
-function setLayer(t) {
-  if (t === 'sat') { map.removeLayer(layerOsm); layerSat.addTo(map); }
-  else { map.removeLayer(layerSat); layerOsm.addTo(map); }
+const nodes=<?= json_encode($odp_list) ?>,custs=<?= json_encode($pel_list) ?>;let flt='all';window.lastLat='';window.lastLng='';
+const map=L.map('mapGis').setView([-6.0758,106.5464],16);
+const uSat=['https:','',['mt1','google','com'].join('.'),'vt','lyrs=y'+String.fromCharCode(38)+'x={x}'+String.fromCharCode(38)+'y={y}'+String.fromCharCode(38)+'z={z}'].join('/');
+const uOsm=['https:','',['{s}','tile','openstreetmap','org'].join('.'),'{z}','{x}','{y}.png'].join('/');
+const lSat=L.tileLayer(uSat,{maxZoom:20}),lOsm=L.tileLayer(uOsm,{maxZoom:19});lSat.addTo(map);
+function setMode(m){if(m=='sat'){map.removeLayer(lOsm);lSat.addTo(map);}else{map.removeLayer(lSat);lOsm.addTo(map);}}
+function setF(f){flt=f;renderGis();}
+function ikon(bg,t,s){return L.divIcon({className:'',html:`<div class="pin-node" style="background:${bg};width:${s}px;height:${s}px">${t}</div>`,iconSize:[s,s],iconAnchor:[s/2,s/2]});}
+function renderGis(){
+  if(window.lg)map.removeLayer(window.lg);window.lg=L.layerGroup().addTo(map);const nm={};
+  nodes.forEach(n=>{const la=parseFloat(n.lat),ln=parseFloat(n.lng);if(isNaN(la)||isNaN(ln))return;nm[n.id]=[la,ln];const bg=n.jenis=='POP'?'#8b5cf6':(n.jenis=='ODC'?'#3b82f6':'#06b6d4');L.marker([la,ln],{icon:ikon(bg,n.jenis||'ODP',28)}).bindPopup(`<b>[${n.jenis||'ODP'}] ${n.nama_odp}</b>`).addTo(window.lg);});
+  nodes.forEach(n=>{if(n.parent_id&&nm[n.id]&&nm[n.parent_id])L.polyline([nm[n.parent_id],nm[n.id]],{color:'#38bdf8',weight:4}).addTo(window.lg);});
+  custs.forEach(c=>{if(flt!=='all'&&c.st_net!==flt)return;const la=parseFloat(c.lat),ln=parseFloat(c.lng);if(isNaN(la)||isNaN(ln))return;const cl=c.st_net=='online'?'#22c55e':(c.st_net=='isolir'?'#ef4444':'#f59e0b');L.marker([la,ln],{icon:ikon(cl,'&#8962;',22)}).bindPopup(`<b>${c.nama}</b>`).addTo(window.lg);if(c.odp_id&&nm[c.odp_id])L.polyline([nm[c.odp_id],[la,ln]],c.st_net=='online'?{color:'#22c55e',weight:3,className:'kabel-online'}:{color:cl,weight:2,dashArray:'5,5'}).addTo(window.lg);});
 }
-
-const dataOdp = <?= json_encode($odp_list) ?>;
-let pinPilih = null;
-dataOdp.forEach(o => {
-  const la = parseFloat(o.lat), ln = parseFloat(o.lng);
-  if (!isNaN(la) && !isNaN(ln)) L.marker([la, ln]).addTo(map).bindPopup(`<b>${o.nama_odp}</b><br>${o.lokasi}<br>Port: ${o.terpakai}/${o.kapasitas}`);
-});
-
-map.on('click', function(e) {
-  const la = e.latlng.lat.toFixed(6), ln = e.latlng.lng.toFixed(6);
-  document.getElementById('lat_odp').value = la;
-  document.getElementById('lng_odp').value = ln;
-  if (pinPilih) map.removeLayer(pinPilih);
-  pinPilih = L.marker([la, ln]).addTo(map).bindPopup('Titik ODP Baru').openPopup();
-});
-
-function fokusPeta(la, ln) { map.setView([la, ln], 18); window.scrollTo({top: 0, behavior: 'smooth'}); }
-function ambilGpsOdp() {
-  if (!navigator.geolocation) return alert('Browser tidak mendukung GPS.');
-  navigator.geolocation.getCurrentPosition(pos => {
-    const la = pos.coords.latitude.toFixed(6), ln = pos.coords.longitude.toFixed(6);
-    document.getElementById('lat_odp').value = la;
-    document.getElementById('lng_odp').value = ln;
-    if (pinPilih) map.removeLayer(pinPilih);
-    pinPilih = L.marker([la, ln]).addTo(map).bindPopup('Posisi HP Anda').openPopup();
-    map.setView([la, ln], 18);
-  }, err => alert('Pastikan GPS HP aktif: ' + err.message));
-}
-function kompresOdp(inp) {
-  const f = inp.files.item(0); if (!f) return;
-  const r = new FileReader();
-  r.onload = e => {
-    const img = new Image();
-    img.onload = () => {
-      const c = document.createElement('canvas');
-      const sc = img.width > 1000 ? 1000 / img.width : 1;
-      c.width = img.width * sc; c.height = img.height * sc;
-      c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
-      document.getElementById('b64_odp').value = c.toDataURL('image/jpeg', 0.8);
-      document.getElementById('st_odp').innerText = 'Foto siap disimpan!';
-    };
-    img.src = e.target.result;
-  };
-  r.readAsDataURL(f);
-}
+renderGis();let pin=null;
+map.on('click',e=>{const la=e.latlng.lat.toFixed(6),ln=e.latlng.lng.toFixed(6);window.lastLat=la;window.lastLng=ln;document.getElementById('lat_pel').value=la;document.getElementById('lng_pel').value=ln;document.getElementById('lat_odp').value=la;document.getElementById('lng_odp').value=ln;document.getElementById('st_gps_odp').innerText='✓ Titik Peta Siap';document.getElementById('st_gps_pel').innerText='✓ Titik Rumah Siap';if(pin)map.removeLayer(pin);pin=L.marker([la,ln],{icon:ikon('#ef4444','PIN',26)}).addTo(map);});
+function cariPelVis(){const q=document.getElementById('cariDropPel').value.toLowerCase().trim(),b=document.getElementById('hasilCariPel');if(!q){b.style.display='none';return;}const r=custs.filter(c=>c.nama.toLowerCase().includes(q)||(c.akun||'').toLowerCase().includes(q));b.innerHTML=r.length?r.map(c=>`<div onclick="pilihPelItem(${c.id})" style="padding:9px;border-bottom:1px solid #f1f5f9;font-size:12px"><b>${c.nama}</b> (${c.akun})</div>`).join(''):'<div style="padding:8px;font-size:12px">Tidak ditemukan</div>';b.style.display='block';}
+function pilihPelItem(id){const c=custs.find(x=>x.id==id);if(!c)return;document.getElementById('hid_pel_id').value=c.id;document.getElementById('cariDropPel').value=c.nama+' ('+c.akun+')';document.getElementById('hasilCariPel').style.display='none';document.getElementById('badgePelOk').innerText='✓ Terpilih: '+c.nama;document.getElementById('sel_pel_odp').value=c.odp_id||'';if(c.lat&&c.lng){document.getElementById('lat_pel').value=c.lat;document.getElementById('lng_pel').value=c.lng;map.setView([parseFloat(c.lat),parseFloat(c.lng)],18);}else if(window.lastLat){document.getElementById('lat_pel').value=window.lastLat;document.getElementById('lng_pel').value=window.lastLng;}}
+function ambilGps(m){navigator.geolocation.getCurrentPosition(p=>{const la=p.coords.latitude.toFixed(6),ln=p.coords.longitude.toFixed(6);window.lastLat=la;window.lastLng=ln;document.getElementById(m=='pel'?'lat_pel':'lat_odp').value=la;document.getElementById(m=='pel'?'lng_pel':'lng_odp').value=ln;document.getElementById(m=='pel'?'st_gps_pel':'st_gps_odp').innerText='✓ Titik GPS HP Siap';map.setView([la,ln],18);});}
 </script>
