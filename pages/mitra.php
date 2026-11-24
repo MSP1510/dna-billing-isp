@@ -1,4 +1,17 @@
-<?php cekAkses(['owner','admin']);
+<?php
+
+if (isset($_GET['del_mitra'])) {
+    $mid = (int)$_GET['del_mitra'];
+    mysqli_query($conn, "DELETE FROM mitra_setoran WHERE mitra_id=$mid");
+    mysqli_query($conn, "DELETE FROM mitra WHERE id=$mid");
+    echo "<script>location.href='?page=mitra';</script>"; exit;
+}
+if (isset($_GET['del_setor'])) {
+    $sid = (int)$_GET['del_setor'];
+    mysqli_query($conn, "DELETE FROM mitra_setoran WHERE id=$sid");
+    echo "<script>location.href='?page=mitra';</script>"; exit;
+}
+ cekAkses(['owner','admin']);
 if (isset($_POST['add_mitra'])) {
     mysqli_query($conn, "INSERT INTO mitra (nama_mitra,no_wa,alamat,komisi_persen) VALUES ('$_POST[nm]','$_POST[wa]','$_POST[al]',".(int)$_POST['km'].")");
     echo "<script>location.href='?page=mitra';</script>"; exit;
@@ -32,6 +45,23 @@ if (isset($_GET['setor'])) {
     <input name="km" type="number" value="10" style="width:85px" title="Komisi Agen (%)"> % Komisi
     <button name="add_mitra" class="btn btn-g">+ Tambah Mitra</button>
   </form>
+
+  <div style="overflow-x:auto;margin-top:12px">
+    <table>
+      <tr><th>No</th><th>Nama Mitra / Warung</th><th>No. WA / Info</th><th>Komisi</th><th>Delete</th></tr>
+      <?php $no_m=1; $qm_list=mysqli_query($conn,"SELECT * FROM mitra ORDER BY id DESC");
+      while($ml=mysqli_fetch_assoc($qm_list)): ?>
+      <tr>
+        <td><?= $no_m++ ?></td>
+        <td><b><?= htmlspecialchars($ml['nama_mitra']) ?></b></td>
+        <td><small><?= htmlspecialchars($ml['no_wa'] ?? ($ml['alamat'] ?? '-')) ?></small></td>
+        <td><span style="background:#e0f2fe;color:#0369a1;padding:2px 6px;border-radius:4px;font-size:11px;font-weight:700"><?= $ml['komisi_persen'] ?>%</span></td>
+        <td><a href="?page=mitra&del_mitra=<?= $ml['id'] ?>" onclick="return confirm('Hapus permanen Mitra ini beserta seluruh riwayat setorannya?')" class="btn btn-r" style="padding:4px 8px;font-size:11px">Delete</a></td>
+      </tr>
+      <?php endwhile; ?>
+      <?php if(mysqli_num_rows($qm_list)==0) echo "<tr><td colspan='5' style='text-align:center;color:#64748b'>Belum ada mitra terdaftar</td></tr>"; ?>
+    </table>
+  </div>
 </div>
 
 <div class="card">
@@ -61,7 +91,7 @@ if (isset($_GET['setor'])) {
       <td><b><?= $d['qty_ambil'] ?> Kartu</b> (<?= $d['paket'] ?>)</td>
       <td style="color:#0284c7;font-weight:700">Rp <?= number_format($d['total_setor']) ?></td>
       <td><?= $st ?></td>
-      <td><?= $d['status']=='titip' ? "<a href='?page=mitra&setor=$d[id]' onclick=\"return confirm('Terima uang setoran & masukkan ke Kas?')\" class='btn btn-g' style='padding:4px 8px;font-size:11px'>Terima Setoran</a>" : "<small>Masuk Kas</small>" ?></td>
+      <td><?= $d['status']=='titip' ? "<a href='?page=mitra&setor=$d[id]' onclick=\"return confirm('Terima uang setoran & masukkan ke Kas?')\" class='btn btn-g' style='padding:4px 8px;font-size:11px'>Terima Setoran</a>" : "<small>Masuk Kas</small>" ?> <a href='?page=mitra&del_setor=$d[id]' onclick=\"return confirm('Hapus baris catatan setoran ini?')\" class='btn btn-r' style='padding:2px 6px;font-size:10px;margin-left:4px'>Delete</a></td>
     </tr>
     <?php endwhile; ?>
   </table>
