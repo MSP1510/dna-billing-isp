@@ -4,26 +4,42 @@ $cfg = [];
 $qc = mysqli_query($conn, "SELECT * FROM pengaturan");
 while ($rc = mysqli_fetch_assoc($qc)) $cfg[$rc['kunci']] = $rc['nilai'];
 
-$nama_wifi = $cfg['nama_usaha'] ?? 'MSP_NETWORK';
+$nama_wifi = $cfg['nama_usaha'] ?? 'D.N.A_NETWORK';
 $dns_login = !empty($cfg['dns_hotspot']) ? $cfg['dns_hotspot'] : 'http://hotspot.login';
 if (strpos($dns_login, 'http') !== 0) $dns_login = 'http://' . $dns_login;
 
-$mode = $_GET['mode'] ?? 'baru';
-$where = ($mode == 'semua') ? "WHERE status='stok'" : "WHERE status='stok' AND sudah_cetak=0";
-$qv = mysqli_query($conn, "SELECT * FROM voucher $where ORDER BY id ASC");
+$mode = $_GET['mode'] ?? 'semua';
+$kode = trim($_GET['kode'] ?? '');
+$prof = trim($_GET['prof'] ?? '');
+
 $list = [];
-while ($r = mysqli_fetch_assoc($qv)) $list[] = $r;
-if (empty($list) && $mode == 'baru') {
-    $qv = mysqli_query($conn, "SELECT * FROM voucher WHERE status='stok' ORDER BY id DESC LIMIT 40");
+if ($kode !== '') {
+    $sk = mysqli_real_escape_string($conn, $kode);
+    $qv = mysqli_query($conn, "SELECT * FROM voucher WHERE kode='$sk' LIMIT 1");
+    while ($r = mysqli_fetch_assoc($qv)) $list[] = $r;
+} elseif ($prof !== '') {
+    $sp = mysqli_real_escape_string($conn, $prof);
+    $qv = mysqli_query($conn, "SELECT * FROM voucher WHERE profil='$sp' ORDER BY id DESC LIMIT 200");
+    while ($r = mysqli_fetch_assoc($qv)) $list[] = $r;
+} elseif ($mode == 'baru') {
+    $qv = mysqli_query($conn, "SELECT * FROM voucher WHERE sudah_cetak=0 ORDER BY id ASC LIMIT 200");
+    while ($r = mysqli_fetch_assoc($qv)) $list[] = $r;
+    if (empty($list)) {
+        $qv = mysqli_query($conn, "SELECT * FROM voucher ORDER BY id DESC LIMIT 40");
+        while ($r = mysqli_fetch_assoc($qv)) $list[] = $r;
+    }
+    mysqli_query($conn, "UPDATE voucher SET sudah_cetak=1 WHERE sudah_cetak=0");
+} else {
+    $qv = mysqli_query($conn, "SELECT * FROM voucher ORDER BY id DESC LIMIT 200");
     while ($r = mysqli_fetch_assoc($qv)) $list[] = $r;
 }
-mysqli_query($conn, "UPDATE voucher SET sudah_cetak=1 $where");
 ?>
 <!DOCTYPE html>
 <html>
 <head>
 <meta charset="utf-8">
 <title>Cetak Kartu Voucher - <?= htmlspecialchars($nama_wifi) ?></title>
+<script src="https://cloudflare.com"></script>
 <style>
   @page { size: A4 portrait; margin: 6mm; }
   * { box-sizing: border-box; margin: 0; padding: 0; font-family: Arial, Helvetica, sans-serif; }
@@ -38,20 +54,21 @@ mysqli_query($conn, "UPDATE voucher SET sudah_cetak=1 $where");
   .v-code { font-size: 15px; font-weight: 900; text-align: center; letter-spacing: 0.5px; color: #000; margin: 1px 0; }
   .v-foot { font-size: 8px; color: #222; line-height: 1.2; }
   .v-qr { width: 58px; padding: 3px 3px 1px 0; display: flex; flex-direction: column; align-items: center; justify-content: space-between; }
-  .v-qr img { width: 52px; height: 52px; display: block; }
+  .qr-box { width: 50px; height: 50px; }
+  .qr-box img, .qr-box canvas { width: 50px !important; height: 50px !important; }
   .v-num { font-size: 7.5px; font-weight: 700; align-self: flex-end; color: #333; }
   @media print { .no-print { display: none; } }
 </style>
 </head>
 <body>
 <div class="no-print">
-  <button class="btn-p" onclick="window.print()">🖨️ Cetak Sekarang (A4 - 4 Kolom)</button>
-  <span style="font-size:12px;margin-left:10px">Total: <b><?= count($list) ?> Voucher</b></span>
+  <button class="btn-p" onclick="window.print()">Cetak / Simpan PDF (A4 - 4 Kolom)</button>
+  <span style="font-size:12px;margin-left:10px">Total Siap Cetak: <b><?= count($list) ?> Voucher</b></span>
 </div>
 <div class="grid">
 <?php $no = 1; foreach ($list as $v):
   $login_url = $dns_login . "/login?username=" . urlencode($v['kode']) . "&password=" . urlencode($v['kode']);
-  $qr_api = "https://qrserver.com" . urlencode($login_url);
+  $qid = "qr_" . $no;
 ?>
   <div class="v-card">
     <div class="v-price">Rp <?= number_format($v['harga'], 0, ',', '.') ?></div>
@@ -64,11 +81,18 @@ mysqli_query($conn, "UPDATE voucher SET sudah_cetak=1 $where");
       </div>
     </div>
     <div class="v-qr">
-      <img src="<?= $qr_api ?>" alt="QR">
+      <div id="<?= $qid ?>" class="qr-box" data-url="<?= htmlspecialchars($login_url) ?>"></div>
       <div class="v-num">[<?= $no++ ?>]</div>
     </div>
   </div>
 <?php endforeach; ?>
 </div>
+<script>
+document.querySelectorAll('.qr-box').forEach(function(el){
+  if (typeof QRCode !== 'undefined') {
+    new QRCode(el, { text: el.getAttribute('data-url'), width: 50, height: 50, correctLevel: QRCode.CorrectLevel.L });
+  }
+});
+</script>
 </body>
 </html>
