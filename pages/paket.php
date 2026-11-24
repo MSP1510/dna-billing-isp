@@ -120,7 +120,7 @@ $ep = isset($_GET['edit_pkt']) ? mysqli_fetch_assoc(mysqli_query($conn,"SELECT *
   </form>
   <div style="overflow-x:auto">
   <table>
-    <tr><th>Nama Profil</th><th>Grup</th><th>Bandwidth (Up/Down)</th><th>Harga Modal</th><th>Harga Jual</th><th>Masa Aktif | Kuota</th><th>Shared</th><th>Aksi</th></tr>
+    <tr><th>Nama Profil</th><th>Grup</th><th>Bandwidth (Up/Down)</th><th>Harga Modal</th><th>Harga Jual</th><th>Masa Aktif | Kuota</th><?php if($tipe_pkt=='HOTSPOT'): ?><th>Shared</th><?php endif; ?><th>Aksi</th></tr>
     <?php
     $q=mysqli_query($conn,"SELECT p.*, b.nama_bw, b.up_max, b.dl_max, g.nama_grup FROM paket p LEFT JOIN bandwidth b ON p.bw_id=b.id LEFT JOIN grup_profil g ON p.grup_id=g.id WHERE p.tipe='$tipe_pkt' ORDER BY p.id DESC");
     while($d=mysqli_fetch_assoc($q)): ?>
@@ -131,8 +131,8 @@ $ep = isset($_GET['edit_pkt']) ? mysqli_fetch_assoc(mysqli_query($conn,"SELECT *
       <td>Rp <?= number_format($d['harga_modal']) ?></td>
       <td><b style="color:#00a65a">Rp <?= number_format($d['harga']) ?></b></td>
       <td><?= $d['masa_aktif'] ?> | <?= $d['kuota'] ?></td>
-      <td><?= $d['shared_users'] ?> Device</td>
-      <td><a href="?page=paket&sub=<?= $sub ?>&edit_pkt=<?= $d['id'] ?>" class="btn" style="padding:4px 8px">Edit</a> <a href="?page=paket&sub=<?= $sub ?>&del_pkt=<?= $d['id'] ?>" onclick="return confirm('Hapus paket ini?')" class="btn btn-r" style="padding:4px 8px">Hapus</a></td>
+      <?php if($tipe_pkt=='HOTSPOT'): ?><td><?= $d['shared_users'] ?> Device</td><?php endif; ?>
+      <td style="white-space:nowrap"><a href="?page=paket&sub=<?= $sub ?>&edit_pkt=<?= $d['id'] ?>" class="btn" style="padding:4px 8px">Edit</a> <a href="?page=paket&sub=<?= $sub ?>&del_pkt=<?= $d['id'] ?>" onclick="return confirm('Hapus paket ini?')" class="btn btn-r" style="padding:4px 8px">Hapus</a></td>
     </tr>
     <?php endwhile; ?>
   </table>
