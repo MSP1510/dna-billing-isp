@@ -15,9 +15,7 @@ rm -rf /var/www/html/*
 git clone https://github.com /var/www/html
 bash /var/www/html/install.sh
 ```
-2. Buka aplikasi di browser (`http://IP_STB_ARMBIAN:8080`), login dengan akun bawaan:
-   * **Username:** `owner`
-   * **Password:** `123456`
+2. Buka aplikasi di browser (`http://IP_STB_ARMBIAN:8080`), lalu hubungi pengembang (**D.N.A_NETWORK / MSP_NET**) untuk mendapatkan kredensial login pertama kali.
 3. Masuk ke menu **Router [ NAS ]** -> tambahkan IP & akun MikroTik -> buka menu **Script MikroTik** -> salin **Script Gabungan All-in-One** ke **New Terminal** Winbox.
 
 ---
