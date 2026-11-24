@@ -1,3 +1,53 @@
+
+<div class="card" style="border-left:5px solid #f59e0b;background:#fffbeb">
+  <h4>Broadcast WhatsApp Massal, Jadwal & Info Gangguan Jaringan (Per ODP / Pusat)</h4>
+  <form method="POST" style="margin-top:8px">
+    <input name="judul_bc" placeholder="Judul Broadcast (mis: Info Gangguan ODP-01 / Pemeliharaan)" required>
+    <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px">
+      <select name="target_tipe" id="tgt_bc" onchange="document.getElementById('box_odp_bc').style.display=(this.value=='odp')?'block':'none'" style="flex:1;min-width:170px">
+        <option value="semua">Semua Pelanggan Aktif (Massal)</option>
+        <option value="odp">Khusus Titik ODP Tertentu (Gangguan Jalur)</option>
+        <option value="tunggakan">Pelanggan Belum Bayar (Menunggak)</option>
+      </select>
+      <div id="box_odp_bc" style="display:none;flex:1;min-width:170px">
+        <select name="odp_id">
+          <option value="">-- Pilih Titik ODP Terdampak --</option>
+          <?php $qo_bc=mysqli_query($conn,"SELECT id, jenis, nama_odp, lokasi FROM odp ORDER BY nama_odp ASC"); while($ob=mysqli_fetch_assoc($qo_bc)) echo "<option value='$ob[id]'>[$ob[jenis]] $ob[nama_odp] ($ob[lokasi])</option>"; ?>
+        </select>
+      </div>
+    </div>
+    <div style="display:flex;flex-wrap:wrap;gap:4px;margin:6px 0">
+      <button type="button" onclick="setTplBc('gangguan_all')" class="btn btn-r" style="padding:3px 7px;font-size:10px">+ Template Gangguan Massal</button>
+      <button type="button" onclick="setTplBc('gangguan_odp')" class="btn btn-w" style="padding:3px 7px;font-size:10px">+ Template Gangguan ODP</button>
+      <button type="button" onclick="setTplBc('normal')" class="btn btn-g" style="padding:3px 7px;font-size:10px">+ Template Jaringan Normal</button>
+    </div>
+    <textarea name="pesan_bc" id="pesan_bc" rows="4" placeholder="Tulis pesan pengumuman... Gunakan {nama} untuk nama pelanggan & {odp} untuk nama ODP." required style="width:100%;padding:8px;border:1px solid #cbd5e1;border-radius:6px"></textarea>
+    <div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:6px">
+      <select name="mode_kirim" onchange="document.getElementById('tgl_bc').style.display=(this.value=='jadwal')?'inline-block':'none'" style="width:175px">
+        <option value="sekarang">Kirim Sekarang Juga</option>
+        <option value="jadwal">Jadwalkan Tanggal & Jam</option>
+      </select>
+      <input type="datetime-local" name="jadwal_kirim" id="tgl_bc" style="display:none;width:195px">
+      <button name="simpan_bc_wa" class="btn btn-g">Proses Kirim / Jadwalkan WA</button>
+    </div>
+  </form>
+  <div style="overflow-x:auto;margin-top:10px"><table>
+    <tr><th>Waktu Jadwal</th><th>Judul</th><th>Target</th><th>Status</th><th>Terkirim</th><th>Aksi</th></tr>
+    <?php $q_wj=mysqli_query($conn,"SELECT w.*, o.nama_odp FROM wa_jadwal w LEFT JOIN odp o ON w.odp_id=o.id ORDER BY w.id DESC LIMIT 10");
+    while($wj=mysqli_fetch_assoc($q_wj)): $tg_lbl = ($wj['target_tipe']=='odp') ? "ODP: ".($wj['nama_odp']??'-') : strtoupper($wj['target_tipe']); ?>
+    <tr><td style="font-size:11px"><?= $wj['jadwal_kirim'] ?></td><td><b><?= htmlspecialchars($wj['judul']) ?></b></td><td><small><?= htmlspecialchars($tg_lbl) ?></small></td><td><span style="background:<?= $wj['status']=='terkirim'?'#22c55e':'#f59e0b' ?>;color:#fff;padding:2px 6px;border-radius:4px;font-size:10px"><?= strtoupper($wj['status']) ?></span></td><td><?= $wj['total_terkirim'] ?> WA</td><td><a href="?page=tagihan&del_bc=<?= $wj['id'] ?>" class="btn btn-r" style="padding:2px 6px;font-size:10px">Hapus</a></td></tr>
+    <?php endwhile; ?>
+  </table></div>
+</div>
+<script>
+function setTplBc(t){
+  const el=document.getElementById('pesan_bc');
+  if(t=='gangguan_all') el.value="Yth. Bpk/Ibu {nama},\nMohon maaf saat ini sedang terjadi gangguan jaringan internet pusat (Upstream). Tim teknisi kami sedang melakukan penanganan secepatnya. Terima kasih atas pengertiannya.";
+  else if(t=='gangguan_odp'){ document.getElementById('tgt_bc').value='odp'; document.getElementById('box_odp_bc').style.display='block'; el.value="Yth. Bpk/Ibu {nama},\nMohon maaf saat ini terjadi gangguan kabel fiber optik pada jalur distribusi *{odp}*. Tim teknisi sedang menuju lokasi untuk perbaikan. Terima kasih."; }
+  else if(t=='normal') el.value="Yth. Bpk/Ibu {nama},\nInformasi: Perbaikan jaringan internet telah selesai dan koneksi Anda sudah kembali *NORMAL*. Jika modem masih merah, silakan restart modem Anda. Terima kasih.";
+}
+</script>
+
 <?php cekAkses(['owner','admin']);
 $bln_ini = date('m-Y');
 
@@ -12,6 +62,27 @@ function formatPesanWA($tpl, $d) {
         '{metode}' => $d['metode_bayar'] ?? 'Tunai'
     ];
     return str_replace(array_keys($rep), array_values($rep), $tpl);
+}
+
+
+if (isset($_POST['simpan_bc_wa'])) {
+    $jdl  = mysqli_real_escape_string($conn, $_POST['judul_bc'] ?? 'Pengumuman');
+    $tgt  = mysqli_real_escape_string($conn, $_POST['target_tipe']);
+    $oid  = ($tgt == 'odp' && !empty($_POST['odp_id'])) ? (int)$_POST['odp_id'] : "NULL";
+    $psn  = mysqli_real_escape_string($conn, $_POST['pesan_bc']);
+    $mode = $_POST['mode_kirim'] ?? 'sekarang';
+    $jdw  = ($mode == 'jadwal' && !empty($_POST['jadwal_kirim'])) ? date('Y-m-d H:i:s', strtotime($_POST['jadwal_kirim'])) : date('Y-m-d H:i:s');
+    mysqli_query($conn, "INSERT INTO wa_jadwal (judul, target_tipe, odp_id, pesan, jadwal_kirim) VALUES ('$jdl', '$tgt', $oid, '$psn', '$jdw')");
+    if ($mode == 'sekarang') {
+        include "/var/www/html/cron_wa_jadwal.php";
+        echo "<div class='card' style='border-left:5px solid #00a65a;background:#f0fdf4'><b>Broadcast WA Berhasil Dikirim!</b> Seluruh penerima terpilih telah diproses ke WhatsApp Gateway.</div>";
+    } else {
+        echo "<div class='card' style='border-left:5px solid #0284c7;background:#f0f9ff'><b>Jadwal Broadcast Tersimpan!</b> Pesan akan dikirim otomatis pada <b>$jdw</b>.</div>";
+    }
+}
+if (isset($_GET['del_bc'])) {
+    mysqli_query($conn, "DELETE FROM wa_jadwal WHERE id=".(int)$_GET['del_bc']);
+    echo "<script>location.href='?page=tagihan';</script>"; exit;
 }
 
 if (isset($_POST['gen_massal'])) {
