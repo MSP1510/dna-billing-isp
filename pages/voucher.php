@@ -4,8 +4,16 @@ function acakKodeVoucher($p=8,$t='angka'){
   $r=''; $m=strlen($k)-1; for($i=0;$i<$p;$i++)$r.=$k[random_int(0,$m)]; return $r;
 }
 function waktuKeDetik($s){
-  $d=0; if(preg_match('/(\d+)w/',$s,$m))$d+=$m*604800; if(preg_match('/(\d+)d/',$s,$m))$d+=$m*86400;
-  if(preg_match('/(\d+)h/',$s,$m))$d+=$m*3600; if(preg_match('/(\d+)m/',$s,$m))$d+=$m*60; if(preg_match('/(\d+)s/',$s,$m))$d+=$m; return $d;
+  $d=0; $num='';
+  for($i=0;$i<strlen($s);$i++){
+    $ch=$s[$i];
+    if(ctype_digit($ch)){$num.=$ch;}
+    elseif($num!==''){
+      $v=(int)$num; $num='';
+      if($ch=='w')$d+=$v*604800; elseif($ch=='d')$d+=$v*86400; elseif($ch=='h')$d+=$v*3600; elseif($ch=='m')$d+=$v*60; elseif($ch=='s')$d+=$v;
+    }
+  }
+  return $d;
 }
 function detikKeTeks($s){
   if($s<=0)return 'Habis'; $d=floor($s/86400);$s%=86400; $h=floor($s/3600);$s%=3600; $m=floor($s/60);
@@ -123,8 +131,11 @@ $filtered=array_filter($mt_list,function($u)use($fs,$fp,$fc){ if($fs!==''&&strip
   <div style="overflow-x:auto"><table>
     <tr><th>Time</th><th>Users (IP)</th><th>Messages</th></tr>
     <?php foreach($hs_logs as $lg): $rm=$lg['msg']; $ui='-'; $pm=$rm;
-      if(preg_match('/^([^\s(]+)\s*\(([^)]+)\):\s*(.+)$/',$rm,$m)){$ui="<b>".htmlspecialchars($m[1])."</b><br><small style='color:#64748b'>(".htmlspecialchars($m[2]).")</small>";$pm=$m[3];}
-      elseif(preg_match('/^([^\s:]+):\s*(.+)$/',$rm,$m)){$ui="<b>".htmlspecialchars($m[1])."</b>";$pm=$m[2];}
+      if(strpos($rm, ': ')!==false){
+        $pos=strpos($rm, ': '); $head=substr($rm, 0, $pos); $pm=substr($rm, $pos+2);
+        if(strpos($head, '(')!==false){ $u_nm=trim(strtok($head, '(')); $u_ip=trim(strtok(')')); $ui="<b>".htmlspecialchars($u_nm)."</b><br><small style='color:#64748b'>(".htmlspecialchars($u_ip).")</small>"; }
+        else { $ui="<b>".htmlspecialchars(trim($head))."</b>"; }
+      }
       $mc=(stripos($pm,'logged in')!==false||stripos($pm,'log in')!==false)?'#00a65a':((stripos($pm,'failed')!==false||stripos($pm,'timeout')!==false)?'#dd4b39':'#334155');
     ?>
     <tr><td style="font-size:11px;white-space:nowrap;color:#475569"><?= htmlspecialchars($lg['time']) ?></td><td style="font-size:12px"><?= $ui ?></td><td style="font-size:12px;color:<?= $mc ?>;font-weight:600"><?= htmlspecialchars($pm) ?></td></tr>
