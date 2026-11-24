@@ -41,6 +41,12 @@ th,td{padding:9px;border-bottom:1px solid #e2e8f0;text-align:left}th{background:
   .overlay.open{display:block}
   .menu-btn,.close-btn{display:inline-block}
 }
+
+/* STICKY HEADER & TOMBOL MENU ANTI SCROLL */
+.menu-btn{position:relative;z-index:960;}
+.header,.head,.navbar,.top-bar,div:has(> .menu-btn){position:fixed !important;top:0 !important;left:0 !important;right:0 !important;z-index:950 !important;background:#fff !important;box-shadow:0 2px 8px rgba(0,0,0,0.1) !important;padding:10px 14px !important;margin:0 !important;}
+body{padding-top:68px !important;}
+@media(min-width:769px){.header,.head,.navbar,.top-bar,div:has(> .menu-btn){left:230px !important;}}
 </style></head><body>
 
 <div id="dnaLoader"><img src="/assets/icon-192.png" class="spin-logo" alt="Loading"></div>
