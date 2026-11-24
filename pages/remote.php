@@ -1,57 +1,80 @@
 <?php cekAkses(['owner','admin','teknisi']);
-$online_list = [];
-
+$online_ppp = []; $online_arp = [];
 $qr = mysqli_query($conn, "SELECT * FROM routers ORDER BY id ASC");
 while ($rt = mysqli_fetch_assoc($qr)) {
     if ($api->connect($rt['ip_address'], $rt['username'], $rt['password'], $rt['port'])) {
-        // PPPoE Online
-        $ppp = $api->comm('/ppp/active/print');
+        // Ambil khusus PPPoE Active (abaikan akun hotspot dinamis)
         $cur = [];
-        foreach ($ppp as $l) {
-            if ($l == '!re') { if (!empty($cur['ip'])) $online_list[] = $cur; $cur = ['tipe'=>'PPPoE']; }
-            elseif (strpos($l,'=name=')===0) $cur['nama'] = substr($l,6);
+        foreach ($api->comm('/ppp/active/print') as $l) {
+            if ($l == '!re') {
+                $nm = trim($cur['name'] ?? '');
+                if ($nm !== '' && strpos($nm, '<hotspot-') === false && !empty($cur['ip'])) {
+                    $online_ppp[$nm] = trim($cur['ip']);
+                }
+                $cur = [];
+            }
+            elseif (strpos($l,'=name=')===0) $cur['name'] = substr($l,6);
             elseif (strpos($l,'=address=')===0) $cur['ip'] = substr($l,9);
         }
-        if (!empty($cur['ip'])) $online_list[] = $cur;
+        $nm = trim($cur['name'] ?? '');
+        if ($nm !== '' && strpos($nm, '<hotspot-') === false && !empty($cur['ip'])) $online_ppp[$nm] = trim($cur['ip']);
+
+        // Ambil ARP aktif untuk dicocokkan HANYA dengan pelanggan Static IP terdaftar
+        $cur = [];
+        foreach ($api->comm('/ip/arp/print') as $l) {
+            if ($l == '!re') {
+                if (!empty($cur['ip']) && ($cur['comp'] ?? 'false') == 'true') $online_arp[trim($cur['ip'])] = true;
+                $cur = [];
+            }
+            elseif (strpos($l,'=address=')===0) $cur['ip'] = substr($l,9);
+            elseif (strpos($l,'=complete=')===0) $cur['comp'] = substr($l,10);
+        }
+        if (!empty($cur['ip']) && ($cur['comp'] ?? 'false') == 'true') $online_arp[trim($cur['ip'])] = true;
         $api->disconnect();
     }
 }
 
-// Static IP dari Database Pelanggan
-$qs = mysqli_query($conn, "SELECT nama, ip_static FROM pelanggan WHERE tipe_layanan='static' AND ip_static != '' ORDER BY nama ASC");
-while ($s = mysqli_fetch_assoc($qs)) {
-    $online_list[] = ['nama' => $s['nama'], 'ip' => trim($s['ip_static']), 'tipe' => 'Static IP'];
+$list_pppoe = []; $list_static = [];
+$qp = mysqli_query($conn, "SELECT nama, pppoe_user, ip_static, tipe_layanan FROM pelanggan WHERE nama NOT LIKE '<hotspot-%' ORDER BY nama ASC");
+while ($p = mysqli_fetch_assoc($qp)) {
+    $tipe = $p['tipe_layanan'] ?? 'pppoe';
+    if ($tipe == 'static') {
+        $ip = trim($p['ip_static'] ?? '');
+        if ($ip !== '' && isset($online_arp[$ip])) {
+            $list_static[] = ['nama' => $p['nama'], 'akun' => $ip, 'ip' => $ip];
+        }
+    } else {
+        $usr = trim($p['pppoe_user'] ?? '');
+        if ($usr !== '' && isset($online_ppp[$usr])) {
+            $list_pppoe[] = ['nama' => $p['nama'], 'akun' => $usr, 'ip' => $online_ppp[$usr]];
+        }
+    }
 }
 ?>
-<div class="card">
-  <h4>Remote Halaman Login Modem / Router Pelanggan (ONT / AP)</h4>
-  <p style="font-size:12px;color:#475569;margin:4px 0 12px">Buka halaman pengaturan modem pelanggan (ZTE, Huawei, FiberHome, TP-Link, Tenda) dari luar jaringan untuk mengganti nama Wi-Fi atau password pelanggan.</p>
-
-  <form action="remote_proxy.php" method="GET" target="_blank" style="background:#f8fafc;padding:12px;border-radius:6px;border:1px solid #cbd5e1;margin-bottom:14px;display:flex;flex-wrap:wrap;gap:8px;align-items:center">
-    <div>
-      <small><b>Pilih Pelanggan / Ketik IP Modem:</b></small><br>
-      <input name="set_target" id="ip_rem" placeholder="Contoh: 10.10.10.25" required style="width:180px">
-    </div>
-    <div>
-      <small><b>Port Web Modem:</b></small><br>
-      <select name="port" id="port_rem">
-        <option value="80" selected>Port 80 (HTTP Standar)</option>
-        <option value="8080">Port 8080 (ONT / TP-Link)</option>
-        <option value="443">Port 443 (HTTPS ZTE/Huawei)</option>
-      </select>
-    </div>
-    <div style="align-self:flex-end">
-      <button class="btn btn-g">Buka Halaman Modem</button>
-    </div>
+<div class="card" style="border-left:5px solid #0284c7">
+  <h4>Remote Cepat IP Manual (ONT / Router)</h4>
+  <form action="remote_proxy.php" method="GET" target="_blank" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px">
+    <input name="set_target" placeholder="IP Modem ONT (mis: 192.168.100.1)" required style="flex:1;min-width:170px">
+    <select name="port" style="width:110px">
+      <option value="80">Port 80</option>
+      <option value="8080">Port 8080</option>
+      <option value="443">Port 443</option>
+    </select>
+    <button class="btn">Buka Remote</button>
   </form>
+</div>
 
-  <div style="overflow-x:auto">
-  <table>
-    <tr><th>Nama / User Pelanggan</th><th>Layanan</th><th>IP Modem Aktif</th><th>Aksi Remote Cepat</th></tr>
-    <?php foreach ($online_list as $m): ?>
+<div class="card" style="border-top:4px solid #0284c7">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+    <h4>1. Remote Modem ONT — Pelanggan PPPoE Online (<?= count($list_pppoe) ?>)</h4>
+    <a href="?page=remote" class="btn" style="padding:4px 8px;font-size:11px">Refresh</a>
+  </div>
+  <div style="overflow-x:auto"><table>
+    <tr><th>Nama Pelanggan</th><th>User PPPoE</th><th>IP Modem Aktif</th><th>Aksi Remote Cepat</th></tr>
+    <?php foreach($list_pppoe as $m): ?>
     <tr>
       <td><b><?= htmlspecialchars($m['nama']) ?></b></td>
-      <td><span style="background:<?= $m['tipe']=='PPPoE'?'#0284c7':'#8b5cf6' ?>;color:#fff;padding:2px 6px;border-radius:4px;font-size:10px;font-weight:700"><?= $m['tipe'] ?></span></td>
+      <td><small><?= htmlspecialchars($m['akun']) ?></small></td>
       <td style="font-family:monospace;font-weight:700;color:#0284c7"><?= htmlspecialchars($m['ip']) ?></td>
       <td style="display:flex;gap:4px;flex-wrap:wrap">
         <a href="remote_proxy.php?set_target=<?= urlencode($m['ip']) ?>&port=80" target="_blank" class="btn btn-g" style="padding:4px 8px;font-size:11px">Port 80</a>
@@ -60,6 +83,25 @@ while ($s = mysqli_fetch_assoc($qs)) {
       </td>
     </tr>
     <?php endforeach; ?>
-  </table>
-  </div>
+    <?php if(empty($list_pppoe)) echo "<tr><td colspan='4' style='text-align:center;color:#64748b'>Tidak ada modem PPPoE online</td></tr>"; ?>
+  </table></div>
+</div>
+
+<div class="card" style="border-top:4px solid #8b5cf6">
+  <h4>2. Remote Modem ONT — Pelanggan Static IP Online (<?= count($list_static) ?>)</h4>
+  <div style="overflow-x:auto;margin-top:8px"><table>
+    <tr><th>Nama Pelanggan</th><th>IP Static Modem</th><th>Aksi Remote Cepat</th></tr>
+    <?php foreach($list_static as $m): ?>
+    <tr>
+      <td><b><?= htmlspecialchars($m['nama']) ?></b></td>
+      <td style="font-family:monospace;font-weight:700;color:#8b5cf6"><?= htmlspecialchars($m['ip']) ?></td>
+      <td style="display:flex;gap:4px;flex-wrap:wrap">
+        <a href="remote_proxy.php?set_target=<?= urlencode($m['ip']) ?>&port=80" target="_blank" class="btn btn-g" style="padding:4px 8px;font-size:11px">Port 80</a>
+        <a href="remote_proxy.php?set_target=<?= urlencode($m['ip']) ?>&port=8080" target="_blank" class="btn" style="padding:4px 8px;font-size:11px">Port 8080</a>
+        <a href="remote_proxy.php?set_target=<?= urlencode($m['ip']) ?>&port=443" target="_blank" class="btn btn-w" style="padding:4px 8px;font-size:11px">Port 443</a>
+      </td>
+    </tr>
+    <?php endforeach; ?>
+    <?php if(empty($list_static)) echo "<tr><td colspan='3' style='text-align:center;color:#64748b'>Tidak ada modem Static IP online</td></tr>"; ?>
+  </table></div>
 </div>
