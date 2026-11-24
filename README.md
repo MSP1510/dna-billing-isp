@@ -51,3 +51,19 @@ Lalu masuk ke menu **Tool Sistem** di dalam aplikasi untuk mengunggah **Logo Iko
 ```rsc
 /radius remove [find comment="DNA_BILLING_RADIUS"]; /radius add service=hotspot,ppp address=10.20.30.50 src-address=10.20.30.1 secret=dna12345 timeout=3000ms comment="DNA_BILLING_RADIUS"; /radius incoming set accept=yes port=3799; /ip hotspot profile set [find] use-radius=yes
 ```
+
+---
+
+## Tentang Pengembang (Developer)
+* **Aplikasi:** Billing — Sistem Manajemen ISP, RT/RW Net & MikroTik
+* **Dikembangkan oleh:** **MSP_NETWORK**
+* **Tujuan Pengembangan:** Dibangun khusus untuk membantu pengelola RT/RW Net, mitra ISP lokal, dan teknisi jaringan mengelola pelanggan PPPoE, Static IP, Voucher Hotspot RADIUS, pemetaan GIS Satelit, serta penagihan otomatis secara mandiri di server STB Armbian.
+
+---
+
+## ⚠️ Peringatan Hak Cipta & Ketentuan Penggunaan
+> **DILARANG KERAS MEMPERJUALBELIKAN APLIKASI INI!**
+>
+> * Aplikasi **Billing** dibagikan **GRATIS** untuk penggunaan pribadi, komunitas, dan mitra jaringan **MSP_NETWORK**.
+> * **Dilarang keras** mengemas ulang, mengganti hak cipta pengembang, menyewakan, atau memperjualbelikan skrip maupun paket instalasi aplikasi ini dalam bentuk apa pun tanpa izin tertulis dari pengembang resmi (**MSP_NETWORK**).
+> * Segala bentuk penyalahgunaan atau komersialisasi ilegal di luar izin pengembang menjadi tanggung jawab penuh pihak yang bersangkutan.
