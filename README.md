@@ -31,3 +31,18 @@ grep -rl "D.N.A_NET" /var/www/html/ | xargs sed -i "s/D.N.A_NET/\${NAMA_BARU}/g"
 sed -i "s/0895 6307 20504/\${NO_CS}/g" /var/www/html/*.php /var/www/html/pages/*.php
 ```
 Lalu masuk ke menu **Tool Sistem** di dalam aplikasi untuk mengunggah **Logo Ikon Aplikasi**, **Background Halaman Login**, **Nomor Rekening/QRIS**, serta menautkan **QR WhatsApp**.
+
+---
+
+## Cara Mengaktifkan RADIUS Voucher Hotspot di MikroTik
+1. Pastikan STB Armbian dan MikroTik berada dalam satu jalur jaringan lokal.
+2. Salin perintah berikut ke **New Terminal** Winbox/MikroTik Anda (ganti tulisan huruf kapital di dalamnya sesuai IP STB, IP Gateway MikroTik yang mengarah ke STB, dan Secret yang Anda daftarkan di menu **Router [ NAS ]**):
+
+```rsc
+/radius remove [find comment="DNA_BILLING_RADIUS"]; /radius add service=hotspot,ppp address=ISI_IP_STB_ARMBIAN src-address=ISI_IP_GATEWAY_MIKROTIK secret=ISI_SECRET_RADIUS timeout=3000ms comment="DNA_BILLING_RADIUS"; /radius incoming set accept=yes port=3799; /ip hotspot profile set [find] use-radius=yes
+```
+
+* **Contoh Pengisian:**
+  * `ISI_IP_STB_ARMBIAN` : IP LAN milik STB Armbian Anda (misal `10.20.30.50`)
+  * `ISI_IP_GATEWAY_MIKROTIK` : IP interface MikroTik yang satu segmen dengan STB (misal `10.20.30.1`)
+  * `ISI_SECRET_RADIUS` : Secret yang sama dengan kolom Radius Secret di menu **Router [ NAS ]** aplikasi
