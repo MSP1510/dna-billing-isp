@@ -100,6 +100,21 @@ if (isset($_POST['gen_massal'])) {
     echo "<div class='card' style='border-left:4px solid #00a65a'>Berhasil menerbitkan <b>$cnt invoice baru</b> untuk periode $bln_ini!</div>";
 }
 
+
+if (isset($_GET['kirim_pdf_wa'])) {
+    require_once __DIR__ . '/../cetak_invoice_pdf.php';
+    $tid = (int)$_GET['kirim_pdf_wa'];
+    $rtg = mysqli_fetch_assoc(mysqli_query($conn, "SELECT t.*, p.no_wa FROM tagihan t JOIN pelanggan p ON t.pelanggan_id=p.id WHERE t.id=$tid"));
+    if ($rtg) {
+        $pdf_inf = buatPdfInvoiceLunas($conn, $rtg['pelanggan_id'], $tid);
+        if ($pdf_inf && !empty($rtg['no_wa'])) {
+            $psn = "*BUKTI PEMBAYARAN LUNAS*\nYth. Bpk/Ibu *{$pdf_inf['nama']}*,\nTerlampir bukti *PDF Invoice Lunas* (No: *{$pdf_inf['no_inv']}*) sebesar *Rp {$pdf_inf['nominal']}*. Terima kasih.";
+            $res = kirimWA($conn, $rtg['no_wa'], $psn, $pdf_inf['url']);
+            echo "<div class='card' style='border-left:4px solid #00a65a'><b>PDF Invoice Lunas</b> berhasil dikirim ke WA <b>{$pdf_inf['nama']}</b> ({$rtg['no_wa']})!</div>";
+        }
+    }
+}
+
 if (isset($_GET['wa'])) {
     $id_t = (int)$_GET['wa'];
     $t = mysqli_fetch_assoc(mysqli_query($conn, "SELECT t.*, p.nama, p.no_wa, p.kode_pel, p.jatuh_tempo FROM tagihan t JOIN pelanggan p ON t.pelanggan_id=p.id WHERE t.id=$id_t"));
@@ -220,7 +235,7 @@ $tot_lns = mysqli_fetch_assoc(mysqli_query($conn,"SELECT SUM(jumlah) as t, COUNT
 
   <div style="overflow-x:auto">
   <table id="tblInv">
-    <tr><th>No Invoice</th><th>Pelanggan</th><th>Periode</th><th>Nominal</th><th>Status</th><th>Pembayaran</th><th>Aksi</th></tr>
+    <tr><th>No Invoice</th><th>Pelanggan</th><th>Periode</th><th>Nominal</th><th>Status</th><th>Pembayaran</th><th>PDF Lunas</th><th>Aksi</th></tr>
     <?php
     $w = ($flt != 'all') ? "WHERE t.status='$flt'" : "";
     $q = mysqli_query($conn,"SELECT t.*, p.nama, p.no_wa, p.kode_pel FROM tagihan t JOIN pelanggan p ON t.pelanggan_id=p.id $w ORDER BY t.id DESC");
@@ -234,7 +249,8 @@ $tot_lns = mysqli_fetch_assoc(mysqli_query($conn,"SELECT SUM(jumlah) as t, COUNT
       <td><b>Rp <?= number_format($d['jumlah']) ?></b></td>
       <td><?= $st ?></td>
       <td style="font-size:11px"><?= $d['status']=='lunas' ? "$d[metode_bayar]<br><small>$d[tgl_bayar] ($d[admin_nama])</small>" : '-' ?></td>
-      <td style="white-space:nowrap">
+      <td style="white-space:nowrap"><a href="cetak_invoice_pdf.php?pel_id=<?= $t['pelanggan_id'] ?>&tgh_id=<?= $t['id'] ?>" target="_blank" class="btn" style="padding:3px 7px;font-size:10px">Lihat PDF</a> <a href="?page=tagihan&kirim_pdf_wa=<?= $t['id'] ?>" class="btn btn-g" style="padding:3px 7px;font-size:10px">Kirim PDF WA</a></td>
+<td style="white-space:nowrap">
         <a href="?page=tagihan&wa=<?= $d['id'] ?>" class="btn btn-g" style="padding:4px 8px;font-size:11px">Kirim WA</a>
         <?php if($d['status']=='belum_bayar'): ?>
           <button type="button" onclick="bukaBayar(<?= $d['id'] ?>,'<?= addslashes($d['nama']) ?>','<?= number_format($d['jumlah']) ?>')" class="btn" style="padding:4px 8px;font-size:11px">Bayar</button>

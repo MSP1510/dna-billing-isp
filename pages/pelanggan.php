@@ -63,9 +63,16 @@ if (isset($_GET['act']) && isset($_GET['id'])) {
         mysqli_query($conn,"UPDATE pelanggan SET status='isolir' WHERE id=$id");
         sinkronMikrotik($conn, $api, $p, $pk, 'isolir');
     } elseif ($act == 'buka_isolir') {
-        mysqli_query($conn,"UPDATE pelanggan SET status='aktif' WHERE id=$id");
-        sinkronMikrotik($conn, $api, $p, $pk, 'aktif');
-    } elseif ($act == 'renew') {
+            mysqli_query($conn,"UPDATE pelanggan SET status='aktif' WHERE id=$id");
+            mysqli_query($conn,"UPDATE tagihan SET status='lunas', tgl_bayar=NOW() WHERE pelanggan_id=$id AND status='belum_bayar'");
+            sinkronMikrotik($conn, $api, $p, $pk, 'aktif');
+            require_once __DIR__ . '/../cetak_invoice_pdf.php';
+            $pdf_inf = buatPdfInvoiceLunas($conn, $id);
+            if ($pdf_inf && !empty($p['no_wa'])) {
+                $psn_lns = "*PEMBAYARAN LUNAS & BUKA ISOLIR*\nYth. Bpk/Ibu *{$pdf_inf['nama']}*,\nTerima kasih telah melakukan pembayaran tagihan internet sebesar *Rp {$pdf_inf['nominal']}* (No. Invoice: *{$pdf_inf['no_inv']}*).\nStatus layanan Wi-Fi Anda telah *AKTIF KEMBALI*. Terlampir bukti *PDF Invoice Lunas* Anda.";
+                kirimWA($conn, $p['no_wa'], $psn_lns, $pdf_inf['url']);
+            }
+        } elseif ($act == 'renew') {
         mysqli_query($conn,"UPDATE pelanggan SET status='aktif', tgl_perpanjang=NOW(), jatuh_tempo=DATE_ADD(CURDATE(), INTERVAL 30 DAY) WHERE id=$id");
         sinkronMikrotik($conn, $api, $p, $pk, 'aktif');
     } elseif ($act == 'wa_tagih') {
