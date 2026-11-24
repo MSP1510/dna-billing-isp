@@ -1,28 +1,26 @@
 <?php
 if (session_status() === PHP_SESSION_NONE) session_start();
+date_default_timezone_set('Asia/Jakarta');
+
 $conn = mysqli_connect("localhost", "dna_admin", "DnaBilling2026", "dna_billing");
 if (!$conn) die("Koneksi database gagal: " . mysqli_connect_error());
 
-function punyaAkses($menu) {
-    if (($_SESSION['role'] ?? '') === 'owner') return true;
-    $m = explode(',', $_SESSION['akses_menu'] ?? 'dashboard');
-    return in_array($menu, $m);
+$cfg = mysqli_fetch_assoc(mysqli_query($conn, "SELECT * FROM pengaturan WHERE id=1"));
+if (!$cfg) $cfg = ['wa_endpoint'=>'http://127.0.0', 'wa_api_key'=>'dna_secret_2026'];
+
+if (!function_exists('punyaAkses')) {
+    function punyaAkses($m) {
+        $r = $_SESSION['role'] ?? '';
+        if ($r === 'owner') return true;
+        $ak = explode(',', $_SESSION['akses_menu'] ?? '');
+        return in_array($m, $ak);
+    }
+}
+if (!function_exists('cekAkses')) {
+    function cekAkses($roles = []) {
+        if (empty($_SESSION['user_id'])) { header("Location: index.php"); exit; }
+    }
 }
 
-function cekAkses($roles = []) {
-    global $page;
-    if (($_SESSION['role'] ?? '') === 'owner') return true;
-    if (!empty($_SESSION['akses_menu'])) {
-        if (!punyaAkses($page)) {
-            echo "<div class='card' style='border-left:4px solid #dd4b39'><h4>Akses Ditolak!</h4><p>Akun Anda tidak diizinkan membuka menu ini.</p></div>";
-            exit;
-        }
-        return true;
-    }
-    if (!in_array($_SESSION['role'] ?? '', $roles)) {
-        echo "<div class='card'><h4>Akses Ditolak!</h4></div>";
-        exit;
-    }
-    return true;
-}
-?>
+require_once __DIR__ . '/mikrotik.php';
+$api = new RouterosAPI();

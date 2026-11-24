@@ -1,4 +1,8 @@
-<?php cekAkses(['owner','admin','teknisi']);
+<?php
+if (isset($_GET['sync_mt'])) { echo "<div class='card' style='border-left:5px solid #00a65a'>Sinkronisasi MikroTik selesai!</div>"; }
+
+echo "<div style=margin-bottom:10px><a href=?page=pelanggan&sync_mt=1 class=btn>Tarik Semua Pelanggan dari MikroTik</a></div>";
+ cekAkses(['owner','admin','teknisi']);
 $sub_p = $_GET['sub'] ?? 'all';
 
 function sinkronMikrotik($conn, $api, $p, $pk, $mode = 'aktif') {

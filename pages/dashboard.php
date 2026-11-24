@@ -1,78 +1,221 @@
 <?php
-$inv_in = mysqli_fetch_assoc(mysqli_query($conn, "SELECT SUM(jumlah) as t FROM tagihan WHERE status='lunas'"))['t'] ?? 0;
-$kas_in = mysqli_fetch_assoc(mysqli_query($conn, "SELECT SUM(jumlah) as t FROM keuangan WHERE tipe='masuk'"))['t'] ?? 0;
-$tot_masuk = $inv_in + $kas_in;
-$tot_keluar = mysqli_fetch_assoc(mysqli_query($conn, "SELECT SUM(jumlah) as t FROM keuangan WHERE tipe='keluar'"))['t'] ?? 0;
+$routers_q = mysqli_query($conn, "SELECT id, nama_nas, ip_address FROM routers ORDER BY id ASC");
+$router_list = [];
+while ($r = mysqli_fetch_assoc($routers_q)) $router_list[] = $r;
+
+// Auto-hitung Arus Kas & Pemasangan Baru Bulan Ini dari tabel yang ada
+$tot_masuk = 0; $tot_keluar = 0; $pelanggan_baru_bln = 0;
+$bln_ini = date('Y-m');
+$tbls = [];
+$qt = mysqli_query($conn, "SHOW TABLES");
+while ($rtb = mysqli_fetch_row($qt)) $tbls[] = $rtb;
+
+foreach ($tbls as $tb) {
+    if (in_array($tb, ['kas', 'keuangan', 'transaksi', 'arus_kas'])) {
+        $q1 = @mysqli_query($conn, "SELECT SUM(nominal) AS jml FROM `$tb` WHERE jenis IN ('masuk','pemasukan','in') OR tipe IN ('masuk','pemasukan')");
+        if ($q1 && $d1 = mysqli_fetch_assoc($q1)) $tot_masuk += (float)$d1['jml'];
+        $q2 = @mysqli_query($conn, "SELECT SUM(nominal) AS jml FROM `$tb` WHERE jenis IN ('keluar','pengeluaran','out') OR tipe IN ('keluar','pengeluaran')");
+        if ($q2 && $d2 = mysqli_fetch_assoc($q2)) $tot_keluar += (float)$d2['jml'];
+    }
+    if (in_array($tb, ['invoice', 'invoices', 'tagihan']) && $tot_masuk == 0) {
+        $qi = @mysqli_query($conn, "SELECT SUM(nominal) AS jml FROM `$tb` WHERE status IN ('lunas','paid','Lunas')");
+        if ($qi && $di = mysqli_fetch_assoc($qi)) $tot_masuk += (float)$di['jml'];
+        else {
+            $qi2 = @mysqli_query($conn, "SELECT SUM(jumlah) AS jml FROM `$tb` WHERE status IN ('lunas','paid','Lunas')");
+            if ($qi2 && $di2 = mysqli_fetch_assoc($qi2)) $tot_masuk += (float)$di2['jml'];
+        }
+    }
+    if (in_array($tb, ['pelanggan', 'customers', 'users_pppoe', 'client'])) {
+        foreach (['tgl_pasang', 'tanggal_pasang', 'created_at', 'tgl_daftar', 'tanggal'] as $col) {
+            $qp = @mysqli_query($conn, "SELECT COUNT(*) AS c FROM `$tb` WHERE `$col` LIKE '$bln_ini%'");
+            if ($qp && $dp = mysqli_fetch_assoc($qp)) { $pelanggan_baru_bln = (int)$dp['c']; break; }
+        }
+    }
+}
 $sisa_saldo = $tot_masuk - $tot_keluar;
-
-$inv_blm = mysqli_num_rows(mysqli_query($conn, "SELECT id FROM tagihan WHERE status='belum_bayar'"));
-$inv_lns = mysqli_num_rows(mysqli_query($conn, "SELECT id FROM tagihan WHERE status='lunas'"));
-$tot_inv = max(1, $inv_blm + $inv_lns);
-$pct_lns = round(($inv_lns / $tot_inv) * 100);
-
-$pel_akt = mysqli_num_rows(mysqli_query($conn, "SELECT id FROM pelanggan WHERE status='aktif'"));
-$pel_iso = mysqli_num_rows(mysqli_query($conn, "SELECT id FROM pelanggan WHERE status='isolir'"));
-$tot_pel = max(1, $pel_akt + $pel_iso);
-$pct_akt = round(($pel_akt / $tot_pel) * 100);
-
-$tot_arus = max(1, $tot_masuk + $tot_keluar);
-$pct_msk = round(($tot_masuk / $tot_arus) * 100);
-$pct_klr = round(($tot_keluar / $tot_arus) * 100);
-$rx_bar = min(100, max(5, $mt_info['rx'] * 2));
-$tx_bar = min(100, max(5, $mt_info['tx'] * 2));
 ?>
-<div class="tiles">
-  <div class="tile t-green"><h2>Rp <?= number_format($tot_masuk) ?></h2><p>Saldo Masuk (Invoice & Kas)</p></div>
-  <div class="tile t-red"><h2>Rp <?= number_format($tot_keluar) ?></h2><p>Saldo Keluar (Operasional)</p></div>
-  <div class="tile t-blue"><h2>Rp <?= number_format($sisa_saldo) ?></h2><p>Sisa Saldo / Kas Bersih</p></div>
-  <div class="tile t-yellow"><h2><?= $inv_blm ?> Invoice</h2><p>Tagihan Belum Bayar (<?= $ppp_on ?> PPP On)</p></div>
+<style>
+.dna-wrap{background:#0d1117;color:#e6edf3;padding:18px;border-radius:14px;font-family:sans-serif}
+.dna-row4{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:14px;margin-bottom:16px}
+.dna-row2{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px;margin-bottom:18px}
+.dna-card{background:#161b22;border:1px solid #21262d;border-radius:12px;padding:16px}
+.dna-lbl{font-size:12px;color:#8b949e;margin-bottom:6px;display:flex;justify-content:space-between}
+.dna-num{font-size:21px;font-weight:700}
+.dna-sub-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px;text-align:center}
+.dna-box{background:#0d1117;border:1px solid #21262d;border-radius:8px;padding:10px 6px}
+.dna-top{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:12px;margin:8px 0 14px;padding-top:14px;border-top:1px solid #21262d}
+.dna-sel{background:#161b22;color:#e6edf3;border:1px solid #30363d;padding:7px 12px;border-radius:8px;font-size:13px}
+.dna-bdg{padding:5px 10px;border-radius:20px;font-size:11px;font-weight:600;background:rgba(16,185,129,.15);color:#3fb950}
+.dna-bdg.off{background:rgba(248,81,73,.15);color:#f85149}
+.dna-g3{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+@media(max-width:768px){.dna-g3{grid-template-columns:1fr}}
+.dna-pill{font-size:10px;padding:2px 7px;border-radius:10px;background:rgba(56,189,248,.15);color:#38bdf8}
+.dna-trk{height:6px;background:#21262d;border-radius:4px;overflow:hidden;margin-top:8px}
+.dna-fil{height:100%;transition:width .4s ease}
+.dna-tbl{width:100%;border-collapse:collapse;font-size:12px;margin-top:10px}
+.dna-tbl th{text-align:left;color:#8b949e;padding-bottom:8px;border-bottom:1px solid #21262d}
+.dna-tbl td{padding:8px 4px;border-bottom:1px solid #1c2128}
+.dna-ring{width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;border:2px solid #38bdf8;margin-left:auto}
+</style>
+<div class="dna-wrap">
+  <!-- BARIS 1: ARUS KAS & PEMASANGAN BARU BULANAN -->
+  <div class="dna-row4">
+    <div class="dna-card" style="border-left:3px solid #10b981">
+      <div class="dna-lbl"><span>Arus Kas Masuk</span><span style="color:#10b981">▲ IN</span></div>
+      <div class="dna-num" style="color:#4ade80">Rp <?= number_format($tot_masuk,0,',','.') ?></div>
+      <small style="color:#8b949e">Total pemasukan tercatat</small>
+    </div>
+    <div class="dna-card" style="border-left:3px solid #ef4444">
+      <div class="dna-lbl"><span>Arus Kas Keluar</span><span style="color:#ef4444">▼ OUT</span></div>
+      <div class="dna-num" style="color:#f87171">Rp <?= number_format($tot_keluar,0,',','.') ?></div>
+      <small style="color:#8b949e">Biaya operasional keluar</small>
+    </div>
+    <div class="dna-card" style="border-left:3px solid #38bdf8">
+      <div class="dna-lbl"><span>Sisa Saldo Bersih</span><span style="color:#38bdf8">NET</span></div>
+      <div class="dna-num" style="color:#38bdf8">Rp <?= number_format($sisa_saldo,0,',','.') ?></div>
+      <small style="color:#8b949e">Selisih kas masuk &amp; keluar</small>
+    </div>
+    <div class="dna-card" style="border-left:3px solid #f59e0b">
+      <div class="dna-lbl"><span>Pemasangan Baru</span><span style="color:#f59e0b"><?= date('M Y') ?></span></div>
+      <div class="dna-num" style="color:#fbbf24"><?= $pelanggan_baru_bln ?> Pelanggan</div>
+      <small style="color:#8b949e">Aktivasi baru bulan ini</small>
+    </div>
+  </div>
+
+  <!-- BARIS 2: RINCIAN PELANGGAN PPPOE & HOTSPOT VOUCHER -->
+  <div class="dna-row2">
+    <div class="dna-card">
+      <div class="dna-lbl"><strong style="color:#f0f6fc;font-size:14px">Pelanggan PPPoE</strong><span id="ppp-tot" style="color:#8b949e">Total: 0</span></div>
+      <div class="dna-sub-grid">
+        <div class="dna-box"><small style="color:#4ade80">● Online</small><div id="ppp-on" style="font-size:20px;font-weight:700;color:#4ade80;margin-top:4px">0</div></div>
+        <div class="dna-box"><small style="color:#94a3b8">● Offline</small><div id="ppp-off" style="font-size:20px;font-weight:700;color:#cbd5e1;margin-top:4px">0</div></div>
+        <div class="dna-box"><small style="color:#f87171">● Isolir</small><div id="ppp-iso" style="font-size:20px;font-weight:700;color:#f87171;margin-top:4px">0</div></div>
+      </div>
+    </div>
+    <div class="dna-card">
+      <div class="dna-lbl"><strong style="color:#f0f6fc;font-size:14px">Hotspot Voucher</strong><span id="hs-tot" style="color:#8b949e">Total: 0</span></div>
+      <div class="dna-sub-grid" style="grid-template-columns:repeat(2,1fr)">
+        <div class="dna-box"><small style="color:#38bdf8">● Voucher Online</small><div id="hs-on" style="font-size:20px;font-weight:700;color:#38bdf8;margin-top:4px">0</div></div>
+        <div class="dna-box"><small style="color:#f59e0b">● Offline / Stok</small><div id="hs-off" style="font-size:20px;font-weight:700;color:#fbbf24;margin-top:4px">0</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- BARIS 3: TRAFFIC LIVE & INTERFACES (DIPINDAHKAN KE BAWAH) -->
+  <div class="dna-top">
+    <div><h3 style="margin:0;font-size:17px;color:#f0f6fc">Interfaces &amp; Traffic Live</h3><small style="color:#8b949e">Real-time bandwidth &amp; profil aktif router terpilih</small></div>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+      <select id="sel-router" class="dna-sel"><?php foreach($router_list as $rt): ?><option value="<?= $rt['id'] ?>"><?= htmlspecialchars($rt['nama_nas']) ?></option><?php endforeach; ?></select>
+      <select id="sel-iface" class="dna-sel"><option value="">Memuat interface...</option></select>
+      <span id="status-badge" class="dna-bdg">● Memeriksa...</span>
+    </div>
+  </div>
+
+  <div class="dna-row2">
+    <div class="dna-g3">
+      <div class="dna-card">
+        <div style="font-size:12px;color:#8b949e">▲ Upload (TX)</div>
+        <div id="val-tx" class="dna-num" style="color:#38bdf8;margin:4px 0">0.00 Mbps</div>
+        <span id="pct-tx" class="dna-pill">0%</span>
+        <svg viewBox="0 0 120 70" width="115" height="68" style="display:block;margin:6px auto">
+          <path d="M15 60 A45 45 0 0 1 45 20" fill="none" stroke="#10b981" stroke-width="10" stroke-linecap="round"/>
+          <path d="M45 20 A45 45 0 0 1 85 25" fill="none" stroke="#f59e0b" stroke-width="10"/>
+          <path d="M85 25 A45 45 0 0 1 105 60" fill="none" stroke="#ef4444" stroke-width="10" stroke-linecap="round"/>
+          <line id="needle-tx" x1="60" y1="60" x2="22" y2="60" stroke="#38bdf8" stroke-width="3" stroke-linecap="round" style="transform-origin:60px 60px;transition:transform .5s"/>
+          <circle cx="60" cy="60" r="5" fill="#e6edf3"/>
+        </svg>
+        <div class="dna-trk"><div id="bar-tx" class="dna-fil" style="width:0%;background:#4ade80"></div></div>
+      </div>
+      <div class="dna-card">
+        <div style="font-size:12px;color:#8b949e">▼ Download (RX)</div>
+        <div id="val-rx" class="dna-num" style="color:#60a5fa;margin:4px 0">0.00 Mbps</div>
+        <span id="pct-rx" class="dna-pill">0%</span>
+        <svg viewBox="0 0 120 70" width="115" height="68" style="display:block;margin:6px auto">
+          <path d="M15 60 A45 45 0 0 1 45 20" fill="none" stroke="#10b981" stroke-width="10" stroke-linecap="round"/>
+          <path d="M45 20 A45 45 0 0 1 85 25" fill="none" stroke="#f59e0b" stroke-width="10"/>
+          <path d="M85 25 A45 45 0 0 1 105 60" fill="none" stroke="#ef4444" stroke-width="10" stroke-linecap="round"/>
+          <line id="needle-rx" x1="60" y1="60" x2="22" y2="60" stroke="#60a5fa" stroke-width="3" stroke-linecap="round" style="transform-origin:60px 60px;transition:transform .5s"/>
+          <circle cx="60" cy="60" r="5" fill="#e6edf3"/>
+        </svg>
+        <div class="dna-trk"><div id="bar-rx" class="dna-fil" style="width:0%;background:#f59e0b"></div></div>
+      </div>
+      <div class="dna-card">
+        <div style="font-size:12px;color:#8b949e">● Total Online</div>
+        <div id="val-online" class="dna-num" style="color:#4ade80;margin:4px 0">0 Online</div>
+        <span id="pct-online" class="dna-pill" style="background:rgba(74,222,128,.15);color:#4ade80">0%</span>
+        <svg viewBox="0 0 120 70" width="115" height="68" style="display:block;margin:6px auto">
+          <path d="M15 60 A45 45 0 0 1 45 20" fill="none" stroke="#10b981" stroke-width="10" stroke-linecap="round"/>
+          <path d="M45 20 A45 45 0 0 1 85 25" fill="none" stroke="#f59e0b" stroke-width="10"/>
+          <path d="M85 25 A45 45 0 0 1 105 60" fill="none" stroke="#ef4444" stroke-width="10" stroke-linecap="round"/>
+          <line id="needle-online" x1="60" y1="60" x2="22" y2="60" stroke="#4ade80" stroke-width="3" stroke-linecap="round" style="transform-origin:60px 60px;transition:transform .5s"/>
+          <circle cx="60" cy="60" r="5" fill="#e6edf3"/>
+        </svg>
+        <div class="dna-trk"><div id="bar-online" class="dna-fil" style="width:0%;background:#38bdf8"></div></div>
+      </div>
+    </div>
+
+    <div class="dna-card">
+      <div style="font-size:14px;font-weight:600">Bandwidth &amp; Paket Aktif (PPPoE)</div>
+      <table class="dna-tbl">
+        <thead><tr><th>PAKET</th><th>RASIO ONLINE</th><th style="text-align:right">AKTIF</th></tr></thead>
+        <tbody id="pkg-table-body"><tr><td colspan="3" style="color:#8b949e;text-align:center;padding:16px">Menghubungkan ke MikroTik...</td></tr></tbody>
+      </table>
+    </div>
+  </div>
 </div>
+<script>
+(function(){
+  const maxMbps=200;let busy=false,lastRid=null;
+  function gauge(n,b,p,v,m){
+    const r=Math.min(Math.max(v/Math.max(1,m),0),1);
+    document.getElementById(n).style.transform=`rotate(${Math.round(r*180)}deg)`;
+    document.getElementById(b).style.width=`${Math.round(r*100)}%`;
+    document.getElementById(p).textContent=`${Math.round(r*100)}%`;
+  }
+  function sync(){
+    if(busy)return;
+    const rs=document.getElementById('sel-router'),is=document.getElementById('sel-iface');
+    if(!rs)return;
+    const rid=rs.value,ifc=(lastRid===rid&&is)?is.value:'';
+    busy=true;
+    fetch(`api_traffic.php?router_id=${encodeURIComponent(rid)}&iface=${encodeURIComponent(ifc)}`)
+    .then(r=>r.json()).then(d=>{
+      const bg=document.getElementById('status-badge');
+      bg.textContent=d.status==='Online'?'● Online':'● Offline';
+      bg.classList.toggle('off',d.status!=='Online');
+      if(lastRid!==rid&&d.interfaces&&d.interfaces.length){
+        is.innerHTML=d.interfaces.map(i=>`<option value="${i}" ${i===d.selected_if?'selected':''}>${i}</option>`).join('');
+        lastRid=rid;
+      }
+      document.getElementById('ppp-tot').textContent=`Total: ${d.ppp_tot}`;
+      document.getElementById('ppp-on').textContent=d.ppp_on;
+      document.getElementById('ppp-off').textContent=d.ppp_off;
+      document.getElementById('ppp-iso').textContent=d.ppp_isolir;
+      document.getElementById('hs-tot').textContent=`Total: ${d.hs_tot}`;
+      document.getElementById('hs-on').textContent=d.hs_on;
+      document.getElementById('hs-off').textContent=d.hs_off;
 
-<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(290px,1fr));gap:16px">
-  <div class="card">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
-      <h4>Grafik Traffic MikroTik</h4>
-      <form method="GET" style="margin:0"><input type="hidden" name="page" value="dashboard">
-        <select name="iface" onchange="this.form.submit()" style="padding:4px 8px;font-size:12px">
-          <?php if(empty($ifaces)) echo "<option>ether1</option>"; foreach($ifaces as $if) echo "<option value='$if' ".($if==$mt_info['iface']?'selected':'').">$if</option>"; ?>
-        </select>
-      </form>
-    </div>
-    <small style="color:#64748b">Router: <b><?= $mt_info['board'] ?></b> (<?= $mt_ok?'Online':'Offline' ?>)</small>
-    <div style="margin:12px 0">
-      <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px"><span>Download (RX)</span><b style="color:#00a65a"><?= $mt_info['rx'] ?> Mbps</b></div>
-      <div style="height:10px;background:#e2e8f0;border-radius:6px;overflow:hidden"><div style="width:<?= $rx_bar ?>%;height:100%;background:#10b981"></div></div>
-    </div>
-    <div style="margin:12px 0">
-      <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px"><span>Upload (TX)</span><b style="color:#0284c7"><?= $mt_info['tx'] ?> Mbps</b></div>
-      <div style="height:10px;background:#e2e8f0;border-radius:6px;overflow:hidden"><div style="width:<?= $tx_bar ?>%;height:100%;background:#0284c7"></div></div>
-    </div>
-    <svg viewBox="0 0 300 65" style="width:100%;height:65px;background:#f8fafc;border-radius:6px">
-      <polyline fill="none" stroke="#10b981" stroke-width="2.5" points="0,55 50,42 100,48 150,25 200,35 250,18 300,<?= max(10,60-$rx_bar/2) ?>"/>
-      <polyline fill="none" stroke="#0284c7" stroke-width="2.5" points="0,62 50,55 100,58 150,45 200,50 250,38 300,<?= max(15,65-$tx_bar/2) ?>"/>
-    </svg>
-    <div style="text-align:right;margin-top:6px"><a href="?page=dashboard&iface=<?= $mt_info['iface'] ?>" class="btn" style="padding:4px 10px;font-size:11px">Refresh Traffic</a></div>
-  </div>
+      const totOn=d.ppp_on+d.hs_on, totAll=d.ppp_tot+d.hs_tot;
+      document.getElementById('val-tx').textContent=`${d.tx.toFixed(2)} Mbps`;
+      document.getElementById('val-rx').textContent=`${d.rx.toFixed(2)} Mbps`;
+      document.getElementById('val-online').textContent=`${totOn} Online`;
+      gauge('needle-tx','bar-tx','pct-tx',d.tx,maxMbps);
+      gauge('needle-rx','bar-rx','pct-rx',d.rx,maxMbps);
+      gauge('needle-online','bar-online','pct-online',totOn,totAll);
 
-  <div class="card">
-    <h4>Arus Kas (Saldo Masuk vs Keluar)</h4>
-    <small style="color:#64748b">Ringkasan keuangan D.N.A_Billing</small>
-    <div style="margin:14px 0;font-size:12px">
-      <div style="display:flex;justify-content:space-between"><span>Saldo Masuk (<?= $pct_msk ?>%)</span><b style="color:#00a65a">Rp <?= number_format($tot_masuk) ?></b></div>
-      <div style="height:10px;background:#e2e8f0;border-radius:5px;margin:4px 0 12px;overflow:hidden"><div style="width:<?= $pct_msk ?>%;height:100%;background:#00a65a"></div></div>
-      <div style="display:flex;justify-content:space-between"><span>Saldo Keluar (<?= $pct_klr ?>%)</span><b style="color:#dd4b39">Rp <?= number_format($tot_keluar) ?></b></div>
-      <div style="height:10px;background:#e2e8f0;border-radius:5px;margin:4px 0 12px;overflow:hidden"><div style="width:<?= $pct_klr ?>%;height:100%;background:#dd4b39"></div></div>
-      <div style="padding:10px;background:#f8fafc;border-radius:6px;display:flex;justify-content:space-between"><span><b>Sisa Saldo Bersih:</b></span><b style="color:#0284c7">Rp <?= number_format($sisa_saldo) ?></b></div>
-    </div>
-  </div>
-
-  <div class="card">
-    <h4>Kesehatan Router NAS (CPU & RAM)</h4>
-    <small style="color:#64748b">RouterOS v<?= $mt_info['ver'] ?> &bull; Uptime: <?= $mt_info['uptime'] ?></small>
-    <div style="display:flex;justify-content:space-around;align-items:center;margin-top:16px;text-align:center">
-      <div><div style="width:90px;height:90px;border-radius:50%;background:conic-gradient(#6366f1 0% <?= $mt_info['cpu'] ?>%,#e2e8f0 <?= $mt_info['cpu'] ?>% 100%);display:flex;align-items:center;justify-content:center;margin:auto"><div style="width:64px;height:64px;background:#fff;border-radius:50%;display:flex;flex-direction:column;align-items:center;justify-content:center"><b><?= $mt_info['cpu'] ?>%</b><small style="font-size:10px">CPU</small></div></div></div>
-      <div><div style="width:90px;height:90px;border-radius:50%;background:conic-gradient(#f59e0b 0% <?= $mt_info['ram_pct'] ?>%,#e2e8f0 <?= $mt_info['ram_pct'] ?>% 100%);display:flex;align-items:center;justify-content:center;margin:auto"><div style="width:64px;height:64px;background:#fff;border-radius:50%;display:flex;flex-direction:column;align-items:center;justify-content:center"><b><?= $mt_info['ram_pct'] ?>%</b><small style="font-size:10px">RAM</small></div></div></div>
-    </div>
-    <p style="font-size:12px;color:#475569;margin-top:14px;text-align:center">IP: <b><?= $cfg['mt_ip'] ?></b> (<?= $mt_ok?'<span style="color:#00a65a">Terhubung</span>':'<span style="color:#dd4b39">Terputus</span>' ?>) &bull; PPP: <b><?= $ppp_on ?></b> | HS: <b><?= $hs_on ?></b></p>
-  </div>
-</div>
+      const tb=document.getElementById('pkg-table-body');
+      if(d.packages&&d.packages.length){
+        tb.innerHTML=d.packages.map(p=>{
+          const pr=Math.round((p.online/Math.max(1,p.total))*100);
+          return `<tr><td><strong style="color:#f0f6fc">${p.name}</strong></td><td><div style="font-size:11px;color:#8b949e;margin-bottom:3px">${p.online}/${p.total} (${pr}%)</div><div class="dna-trk"><div class="dna-fil" style="width:${pr}%;background:#38bdf8"></div></div></td><td><div class="dna-ring">${p.online}</div></td></tr>`;
+        }).join('');
+      } else {
+        tb.innerHTML='<tr><td colspan="3" style="color:#8b949e;text-align:center;padding:14px">Tidak ada paket PPPoE ditemukan</td></tr>';
+      }
+    }).catch(()=>{}).finally(()=>{busy=false;});
+  }
+  document.getElementById('sel-router').addEventListener('change',()=>{lastRid=null;sync();});
+  document.getElementById('sel-iface').addEventListener('change',sync);
+  sync();setInterval(sync,3000);
+})();
+</script>

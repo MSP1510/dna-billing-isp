@@ -74,6 +74,7 @@ th,td{padding:9px;border-bottom:1px solid #e2e8f0;text-align:left}th{background:
       <a class="<?= $page=='script_mt'?'act':'' ?>" href="?page=script_mt">Script MikroTik</a>
       <a class="<?= $page=='backup'?'act':'' ?>" href="?page=backup">Backup & Restore</a>
       <a class="<?= $page=='tools'?'act':'' ?>" href="?page=tools">Tool Sistem</a>
+<a href="?page=panduan" class="<?= ($page??'')=='panduan'?'active':'' ?>">Panduan &amp; Tentang</a>
     <?php endif; ?>
   </div>
 </div>
