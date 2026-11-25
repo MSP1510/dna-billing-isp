@@ -66,6 +66,7 @@ if ($qr && $rt = mysqli_fetch_assoc($qr)) {
         if ($db_iso > $res['ppp_isolir']) $res['ppp_isolir'] = $db_iso;
 
         $res['ppp_off'] = max(0, $res['ppp_tot'] - $res['ppp_on'] - $res['ppp_isolir']);
+        $pkg = array_filter($pkg, function($v){ return stripos($v['name'], 'isolir') === false; });
         $res['packages'] = array_values($pkg);
 
         // Sinkronkan Hotspot Online & Total Voucher dengan menu Kartu Voucher (MikroTik + DB)
