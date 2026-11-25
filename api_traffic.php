@@ -94,9 +94,9 @@ if ($qr && $rt = mysqli_fetch_assoc($qr)) {
   }
 }
 
-$q_in1 = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COALESCE(SUM(nominal),0) as s FROM keuangan WHERE tipe='masuk'"));
+$q_in1 = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COALESCE(SUM(jumlah),0) as s FROM keuangan WHERE tipe='masuk'"));
 $q_in2 = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COALESCE(SUM(jumlah),0) as s FROM tagihan WHERE status='lunas'"));
-$q_out = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COALESCE(SUM(nominal),0) as s FROM keuangan WHERE tipe='keluar'"));
+$q_out = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COALESCE(SUM(jumlah),0) as s FROM keuangan WHERE tipe='keluar'"));
 $res['kas_masuk']  = (float)$q_in1['s'] + (float)$q_in2['s'];
 $res['kas_keluar'] = (float)$q_out['s'];
 $res['kas_total']  = $res['kas_masuk'] - $res['kas_keluar'];
