@@ -43,10 +43,10 @@ th,td{padding:9px;border-bottom:1px solid #e2e8f0;text-align:left}th{background:
 }
 
 
-/* STICKY FULL TOP HEADER (MENU + JAM + LOGOUT) */
-div:has(#jamDigital){position:fixed !important;top:0 !important;left:0 !important;right:0 !important;z-index:950 !important;background:#fff !important;box-shadow:0 2px 8px rgba(0,0,0,0.12) !important;padding:8px 12px !important;margin:0 !important;}
-body{padding-top:105px !important;}
-@media(min-width:769px){div:has(#jamDigital){left:230px !important;}body{padding-top:75px !important;}}
+
+#dnaTopHeader{position:fixed;top:0;left:0;right:0;z-index:950;background:#fff;box-shadow:0 2px 8px rgba(0,0,0,0.12);padding:8px 12px;margin:0;}
+.wrap{margin-top:95px !important;}
+@media(min-width:769px){#dnaTopHeader{left:230px;}.wrap{margin-top:68px !important;}}
 </style></head><body>
 
 <div id="dnaLoader"><img src="/assets/icon-192.png" class="spin-logo" alt="Loading"></div>
@@ -86,7 +86,7 @@ body{padding-top:105px !important;}
 </div>
 
 <div class="main">
-  <div class="top">
+  <div id="dnaTopHeader" class="top">
     <div style="display:flex;align-items:center;gap:8px">
       <button class="menu-btn" onclick="toggleMenu()">&#9776;</button>
       <div><b style="font-size:13px"><?= strtoupper($page) ?></b><br><small style="font-size:10px;color:#64748b"><?= $_SESSION['nama'] ?> (<?= strtoupper($role) ?>)</small></div>
