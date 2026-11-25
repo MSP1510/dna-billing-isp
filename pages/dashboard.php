@@ -83,7 +83,19 @@ $sisa_saldo = $tot_masuk - $tot_keluar;
   </div>
 
   <!-- BARIS 2: RINCIAN PELANGGAN PPPOE & HOTSPOT VOUCHER -->
-  <div class="dna-row2">
+  
+<div class="dna-row2" style="margin-bottom:14px">
+  <div class="dna-card" style="border-left:4px solid #3fb950">
+    <div class="dna-lbl"><span>💰 Total Kas Bersih (Live)</span><a href="?page=keuangan" style="color:#38bdf8;text-decoration:none;font-size:11px">Detail →</a></div>
+    <div id="kas-total" class="dna-num" style="color:#3fb950;font-size:24px">Rp 0</div>
+    <div class="dna-sub-grid" style="grid-template-columns:1fr 1fr;margin-top:10px">
+      <div class="dna-box"><small style="color:#3fb950">▲ Kas Masuk</small><div id="kas-masuk" style="font-size:14px;font-weight:700;color:#e6edf3;margin-top:3px">Rp 0</div></div>
+      <div class="dna-box"><small style="color:#f85149">▼ Kas Keluar</small><div id="kas-keluar" style="font-size:14px;font-weight:700;color:#e6edf3;margin-top:3px">Rp 0</div></div>
+    </div>
+  </div>
+</div>
+
+<div class="dna-row2">
     <div class="dna-card">
       <div class="dna-lbl"><strong style="color:#f0f6fc;font-size:14px">Pelanggan PPPoE</strong><span id="ppp-tot" style="color:#8b949e">Total: 0</span></div>
       <div class="dna-sub-grid">
@@ -203,7 +215,15 @@ $sisa_saldo = $tot_masuk - $tot_keluar;
       gauge('needle-rx','bar-rx','pct-rx',d.rx,maxMbps);
       gauge('needle-online','bar-online','pct-online',totOn,totAll);
 
-      const tb=document.getElementById('pkg-table-body');
+      
+const rpFmt = n => "Rp " + Math.round(n||0).toLocaleString("id-ID");
+if(document.getElementById("kas-total")){
+  document.getElementById("kas-total").textContent = rpFmt(d.kas_total);
+  document.getElementById("kas-masuk").textContent = rpFmt(d.kas_masuk);
+  document.getElementById("kas-keluar").textContent = rpFmt(d.kas_keluar);
+}
+
+const tb=document.getElementById('pkg-table-body');
       if(d.packages&&d.packages.length){
         tb.innerHTML=d.packages.map(p=>{
           const pr=Math.round((p.online/Math.max(1,p.total))*100);
