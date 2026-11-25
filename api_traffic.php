@@ -42,12 +42,54 @@ if ($qr && $rt = mysqli_fetch_assoc($qr)) {
       if (!isset($pkg[$cp])) $pkg[$cp] = ['name'=>$cp,'total'=>0,'online'=>0];
       $pkg[$cp]['total']++; if (in_array($cn, $act)) $pkg[$cp]['online']++;
     }
-    $res['ppp_off'] = max(0, $res['ppp_tot'] - $res['ppp_on']);
-    $res['packages'] = array_values($pkg);
-    foreach ($api->comm('/ip/hotspot/active/print') as $l) if (strpos($l, '=user=') === 0) $res['hs_on']++;
-    foreach ($api->comm('/ip/hotspot/user/print') as $l) if (strpos($l, '=name=') === 0 && substr($l, 6) !== 'default-trial') $res['hs_tot']++;
-    $res['hs_off'] = max(0, $res['hs_tot'] - $res['hs_on']);
-    $api->disconnect();
+    // Hitung juga pelanggan Static IP aktif (ARP) & isolir dari database agar sinkron dengan Monitor Online
+        $arp_on = []; $cur_a = [];
+        foreach ($api->comm('/ip/arp/print') as $al) {
+            if ($al === '!re') { if (!empty($cur_a['ip']) && ($cur_a['c'] ?? 'false') === 'true') $arp_on[trim($cur_a['ip'])] = true; $cur_a = []; }
+            elseif (strpos($al, '=address=') === 0) $cur_a['ip'] = substr($al, 9);
+            elseif (strpos($al, '=complete=') === 0) $cur_a['c'] = substr($al, 10);
+        }
+        $q_st = mysqli_query($conn, "SELECT p.ip_static, p.status, COALESCE(pk.nama_paket, 'STATIC IP') as pkt FROM pelanggan p LEFT JOIN paket pk ON p.paket_id=pk.id WHERE p.tipe_layanan='static' AND p.nama NOT LIKE '<hotspot-%'");
+        while ($st = mysqli_fetch_assoc($q_st)) {
+            $res['ppp_tot']++;
+            $pnm = $st['pkt'];
+            if (!isset($pkg[$pnm])) $pkg[$pnm] = ['name' => $pnm, 'total' => 0, 'online' => 0];
+            $pkg[$pnm]['total']++;
+            $ip_s = trim($st['ip_static'] ?? '');
+            if ($st['status'] === 'isolir') $res['ppp_isolir']++;
+            elseif ($ip_s !== '' && isset($arp_on[$ip_s])) { $res['ppp_on']++; $pkg[$pnm]['online']++; }
+        }
+
+        // Cocokkan status isolir database pelanggan PPPoE
+        $q_iso = mysqli_query($conn, "SELECT COUNT(*) as jml FROM pelanggan WHERE status='isolir' AND tipe_layanan!='static' AND nama NOT LIKE '<hotspot-%'");
+        $db_iso = (int)(mysqli_fetch_assoc($q_iso)['jml'] ?? 0);
+        if ($db_iso > $res['ppp_isolir']) $res['ppp_isolir'] = $db_iso;
+
+        $res['ppp_off'] = max(0, $res['ppp_tot'] - $res['ppp_on'] - $res['ppp_isolir']);
+        $res['packages'] = array_values($pkg);
+
+        // Sinkronkan Hotspot Online & Total Voucher dengan menu Kartu Voucher (MikroTik + DB)
+        $hs_act_users = [];
+        foreach ($api->comm('/ip/hotspot/active/print') as $l) {
+            if (strpos($l, '=user=') === 0) $hs_act_users[trim(substr($l, 6))] = true;
+        }
+        $res['hs_on'] = count($hs_act_users);
+
+        $hs_all_users = $hs_act_users;
+        foreach ($api->comm('/ip/hotspot/user/print') as $l) {
+            if (strpos($l, '=name=') === 0) {
+                $unm = trim(substr($l, 6));
+                if ($unm !== '' && $unm !== 'default-trial') $hs_all_users[$unm] = true;
+            }
+        }
+        $qv_db = mysqli_query($conn, "SELECT kode FROM voucher");
+        while ($rv = mysqli_fetch_assoc($qv_db)) {
+            $kd = trim($rv['kode'] ?? '');
+            if ($kd !== '') $hs_all_users[$kd] = true;
+        }
+        $res['hs_tot'] = max($res['hs_on'], count($hs_all_users));
+        $res['hs_off'] = max(0, $res['hs_tot'] - $res['hs_on']);
+        $api->disconnect();
   }
 }
 echo json_encode($res);
