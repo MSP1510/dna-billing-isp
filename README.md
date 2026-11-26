@@ -74,3 +74,8 @@ Lalu masuk ke menu **Tool Sistem** di dalam aplikasi untuk mengunggah **Logo Iko
 ```bash
 curl -I http://localhost/portal.php
 ```
+- **Akses dari Luar Jaringan (4G/Internet):** `http://ostddns.us` (atau via Cloudflare Tunnel aktif).
+- **Tes Koneksi Publik via SSH:**
+```bash
+curl -I http://ostddns.us
+```
