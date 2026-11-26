@@ -67,3 +67,10 @@ Lalu masuk ke menu **Tool Sistem** di dalam aplikasi untuk mengunggah **Logo Iko
 > * Aplikasi **Billing** dibagikan **GRATIS** untuk penggunaan pribadi, komunitas, dan mitra jaringan **MSP_NETWORK**.
 > * **Dilarang keras** mengemas ulang, mengganti hak cipta pengembang, menyewakan, atau memperjualbelikan skrip maupun paket instalasi aplikasi ini dalam bentuk apa pun tanpa izin tertulis dari pengembang resmi (**MSP_NETWORK**).
 > * Segala bentuk penyalahgunaan atau komersialisasi ilegal di luar izin pengembang menjadi tanggung jawab penuh pihak yang bersangkutan.
+
+## Cek Portal Pelanggan
+- **Akses Browser:** `http://IP-SERVER/portal.php` (atau melalui domain/tunnel aktif).
+- **Cek Status via Terminal:**
+```bash
+curl -I http://localhost/portal.php
+```
