@@ -6,7 +6,8 @@ $nama_isp = $cfg['nama_isp'] ?? 'D.N.A_Billing';
 $bank = $cfg['info_bank'] ?? '-';
 $ewallet = $cfg['info_ewallet'] ?? '-';
 $qris = $cfg['url_qris'] ?? '';
-$no_cs = preg_replace('/\D/', '', $cfg['no_cs'] ?? '62895630720504');
+$no_cs_raw = $cfg['no_cs'] ?? '0895 6307 20504';
+$no_cs = preg_replace('/\D/', '', $no_cs_raw);
 if (strpos($no_cs, '0') === 0) $no_cs = '62' . substr($no_cs, 1);
 
 $cols = [];
@@ -34,71 +35,118 @@ if ($q !== '') {
 <html lang="id">
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Cek Tagihan - <?= htmlspecialchars($nama_isp) ?></title>
+<title>Portal Pelanggan - <?= htmlspecialchars($nama_isp) ?></title>
 <style>
-  *{box-sizing:border-box;font-family:system-ui,-apple-system,sans-serif;margin:0;padding:0}
-  body{background:#0f172a;color:#f8fafc;padding:16px;min-height:100vh;display:flex;flex-direction:column;align-items:center}
-  .card{width:100%;max-width:440px;background:#1e293b;border:1px solid #334155;border-radius:16px;padding:22px;margin-top:10px;box-shadow:0 12px 30px rgba(0,0,0,0.45)}
-  h2{font-size:20px;color:#38bdf8;text-align:center;margin-bottom:4px}
-  .sub{font-size:12px;color:#94a3b8;text-align:center;margin-bottom:18px}
-  input{width:100%;padding:12px;background:#0f172a;border:1px solid #475569;border-radius:10px;color:#fff;font-size:14px;margin-bottom:10px}
-  .btn{display:block;width:100%;padding:12px;background:#0284c7;color:#fff;border:none;border-radius:10px;font-weight:700;font-size:14px;cursor:pointer;text-align:center;text-decoration:none}
-  .btn-wa{background:#16a34a;margin-top:14px}
-  .info{background:#0f172a;border-radius:12px;padding:14px;margin-top:14px;font-size:13px;line-height:1.65;border:1px solid #334155}
-  .badge{display:inline-block;padding:2px 8px;border-radius:6px;font-size:11px;font-weight:700}
-  .lunas{background:#064e3b;color:#6ee7b7} .belum{background:#7f1d1d;color:#fca5a5}
-  table{width:100%;border-collapse:collapse;margin-top:12px;font-size:12px}
-  th,td{padding:9px 6px;border-bottom:1px solid #334155;text-align:left}
-  .qris{max-width:190px;border-radius:10px;margin:10px auto 0;display:block;background:#fff;padding:6px}
+  *{box-sizing:border-box;font-family:'Segoe UI',system-ui,-apple-system,sans-serif;margin:0;padding:0}
+  body{background:radial-gradient(circle at top,#1e293b,#090d16);color:#f8fafc;padding:18px 14px 40px;min-height:100vh;display:flex;flex-direction:column;align-items:center}
+  .wrap{width:100%;max-width:450px}
+  .hero{text-align:center;margin-bottom:18px}
+  .logo-badge{width:56px;height:56px;border-radius:16px;background:linear-gradient(135deg,#0284c7,#38bdf8);display:inline-flex;align-items:center;justify-content:center;font-size:26px;box-shadow:0 8px 20px rgba(56,189,248,0.3);margin-bottom:10px}
+  h1{font-size:22px;font-weight:800;color:#fff;letter-spacing:0.3px}
+  .sub{font-size:13px;color:#94a3b8;margin-top:3px}
+  .card{background:rgba(30,41,59,0.9);backdrop-filter:blur(10px);border:1px solid rgba(148,163,184,0.2);border-radius:18px;padding:20px;margin-bottom:14px;box-shadow:0 12px 30px rgba(0,0,0,0.35)}
+  label{display:block;font-size:11.5px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px}
+  input{width:100%;padding:13px 14px;background:#0f172a;border:1.5px solid #334155;border-radius:12px;color:#fff;font-size:14.5px;margin-bottom:12px;outline:none}
+  input:focus{border-color:#38bdf8;box-shadow:0 0 0 3px rgba(56,189,248,0.2)}
+  .btn{display:block;width:100%;padding:13px;background:linear-gradient(135deg,#0284c7,#2563eb);color:#fff;border:none;border-radius:12px;font-weight:700;font-size:14.5px;cursor:pointer;text-align:center;text-decoration:none;box-shadow:0 6px 16px rgba(37,99,235,0.35)}
+  .btn-wa{background:linear-gradient(135deg,#16a34a,#15803d);margin-top:14px;box-shadow:0 6px 16px rgba(22,163,74,0.35)}
+  .step{display:flex;align-items:flex-start;gap:12px;margin-bottom:12px;font-size:13px;color:#cbd5e1;line-height:1.45}
+  .step:last-child{margin-bottom:0}
+  .num{min-width:26px;height:26px;border-radius:8px;background:rgba(56,189,248,0.18);color:#38bdf8;font-weight:800;display:flex;align-items:center;justify-content:center;font-size:12px}
+  .pel-head{display:flex;justify-content:space-between;align-items:center;padding-bottom:12px;border-bottom:1px solid #334155;margin-bottom:12px}
+  .badge{padding:4px 10px;border-radius:8px;font-size:11px;font-weight:800}
+  .lunas{background:rgba(16,185,129,0.2);color:#34d399;border:1px solid rgba(16,185,129,0.4)}
+  .belum{background:rgba(239,68,68,0.2);color:#f87171;border:1px solid rgba(239,68,68,0.4)}
+  .pay-box{background:#0f172a;border:1px solid #38bdf8;border-radius:14px;padding:14px;margin-top:12px}
+  .rek-item{background:#1e293b;padding:10px 12px;border-radius:10px;margin-top:8px;border-left:4px solid #38bdf8}
+  .qris{max-width:200px;border-radius:12px;margin:12px auto 0;display:block;background:#fff;padding:8px}
+  table{width:100%;border-collapse:collapse;margin-top:8px;font-size:12.5px}
+  th{color:#94a3b8;font-weight:700;padding:8px 4px;border-bottom:1px solid #334155;text-align:left}
+  td{padding:10px 4px;border-bottom:1px solid rgba(51,65,85,0.6)}
 </style>
 </head>
 <body>
-<div class="card">
-  <h2><?= htmlspecialchars($nama_isp) ?></h2>
-  <div class="sub">Portal Cek Tagihan & Pembayaran Mandiri</div>
-  <form method="GET">
-    <input type="text" name="q" value="<?= htmlspecialchars($q) ?>" placeholder="Ketik Nama, No. WA, atau User PPPoE..." required>
-    <button type="submit" class="btn">Cek Tagihan Sekarang</button>
-  </form>
-  <?php if ($q !== '' && !$pel): ?>
-    <div class="info" style="color:#fca5a5;text-align:center">Data pelanggan tidak ditemukan. Periksa kembali ejaan nama atau nomor HP Anda.</div>
-  <?php elseif ($pel): ?>
-    <div class="info">
-      <div><b>Pelanggan:</b> <?= htmlspecialchars($pel['nama']) ?></div>
-      <div><b>Paket:</b> <?= htmlspecialchars($pel['nama_paket'] ?? '-') ?> (Rp <?= number_format($pel['harga'] ?? 0,0,',','.') ?>/bln)</div>
-      <div><b>Status Layanan:</b> <span class="badge <?= ($pel['status']??'')=='isolir'?'belum':'lunas' ?>"><?= strtoupper($pel['status'] ?? 'AKTIF') ?></span></div>
-      <div style="margin-top:12px;padding:14px;border-radius:10px;background:#1e293b;border:1px solid #38bdf8">
-        <div style="font-size:14px;font-weight:800;color:#38bdf8;margin-bottom:6px">Informasi Pembayaran Tagihan</div>
-        <p style="font-size:12.5px;color:#cbd5e1;margin-bottom:10px;line-height:1.5">Silakan lakukan pembayaran tagihan Wi-Fi Anda melalui transfer rekening, E-Wallet, atau scan kode QRIS di bawah ini agar layanan internet tetap aktif lancar:</p>
-        <div style="background:#0f172a;padding:10px 12px;border-radius:8px;margin-bottom:8px;border-left:4px solid #38bdf8">
-          <div style="font-size:11px;color:#94a3b8;text-transform:uppercase;font-weight:700">Transfer Bank</div>
-          <div style="font-size:16px;font-weight:800;color:#ffffff;letter-spacing:0.3px;margin-top:2px"><?= htmlspecialchars($bank) ?></div>
+<div class="wrap">
+  <div class="hero">
+    <div class="logo-badge">&#128246;</div>
+    <h1><?= htmlspecialchars($nama_isp) ?></h1>
+    <div class="sub">Layanan Cek Tagihan & Pembayaran Mandiri</div>
+  </div>
+
+  <div class="card">
+    <form method="GET">
+      <label>Cari Data Pelanggan</label>
+      <input type="text" name="q" value="<?= htmlspecialchars($q) ?>" placeholder="Ketik Nama, No. WhatsApp, atau ID PPPoE..." required>
+      <button type="submit" class="btn">&#128269; Cek Tagihan Sekarang</button>
+    </form>
+  </div>
+
+  <?php if ($q === ''): ?>
+    <div class="card">
+      <div style="font-size:14px;font-weight:700;color:#38bdf8;margin-bottom:12px">Cara Cek & Pembayaran Tagihan:</div>
+      <div class="step"><div class="num">1</div><div>Masukkan <b>Nama Lengkap</b>, <b>Nomor WhatsApp</b>, atau <b>Username PPPoE</b> Anda pada kolom di atas lalu tekan tombol cek.</div></div>
+      <div class="step"><div class="num">2</div><div>Periksa rincian tagihan, salin <b>Nomor Rekening / E-Wallet</b>, atau tekan tombol <b>Unduh QRIS</b> untuk membayar lewat aplikasi M-Banking / DANA / GoPay.</div></div>
+      <div class="step"><div class="num">3</div><div>Tekan tombol <b>Konfirmasi via WhatsApp</b> agar admin segera memverifikasi pembayaran dan mengunduh bukti Invoice lunas Anda.</div></div>
+    </div>
+  <?php elseif (!$pel): ?>
+    <div class="card" style="text-align:center;border-color:#ef4444">
+      <div style="font-size:32px;margin-bottom:6px">&#128533;</div>
+      <div style="font-weight:700;color:#f87171;margin-bottom:4px">Data Pelanggan Tidak Ditemukan</div>
+      <div style="font-size:12.5px;color:#94a3b8">Pastikan ejaan nama sesuai pendaftaran atau gunakan Nomor WhatsApp yang terdaftar.</div>
+    </div>
+  <?php else: ?>
+    <div class="card">
+      <div class="pel-head">
+        <div>
+          <div style="font-size:17px;font-weight:800;color:#fff"><?= htmlspecialchars($pel['nama']) ?></div>
+          <div style="font-size:12.5px;color:#38bdf8;margin-top:2px"><?= htmlspecialchars($pel['nama_paket'] ?? '-') ?> &bull; Rp <?= number_format($pel['harga'] ?? 0,0,',','.') ?>/bln</div>
         </div>
-        <div style="background:#0f172a;padding:10px 12px;border-radius:8px;margin-bottom:10px;border-left:4px solid #22c55e">
-          <div style="font-size:11px;color:#94a3b8;text-transform:uppercase;font-weight:700">Transfer E-Wallet</div>
-          <div style="font-size:16px;font-weight:800;color:#ffffff;letter-spacing:0.3px;margin-top:2px"><?= htmlspecialchars($ewallet) ?></div>
+        <span class="badge <?= ($pel['status']??'')=='isolir'?'belum':'lunas' ?>"><?= strtoupper($pel['status'] ?? 'AKTIF') ?></span>
+      </div>
+
+      <div style="font-size:13px;font-weight:700;color:#cbd5e1;margin-bottom:4px">Riwayat Tagihan Terakhir</div>
+      <table>
+        <tr><th>Periode</th><th>Nominal</th><th>Status</th></tr>
+        <?php if (empty($tagihan)): ?>
+          <tr><td colspan="3" style="text-align:center;color:#94a3b8;padding:14px">Belum ada tagihan tercetak untuk akun ini.</td></tr>
+        <?php endif; ?>
+        <?php foreach ($tagihan as $t): ?>
+        <tr>
+          <td><b><?= htmlspecialchars($t['bulan_tahun'] ?? '-') ?></b></td>
+          <td>Rp <?= number_format($t['jumlah'] ?? 0,0,',','.') ?></td>
+          <td>
+            <span class="badge <?= $t['status']=='lunas'?'lunas':'belum' ?>"><?= $t['status']=='lunas'?'LUNAS':'BELUM' ?></span>
+            <?php if($t['status']=='lunas'): ?><a href="cetak_invoice_pdf.php?id=<?= (int)$t['id'] ?>" target="_blank" style="display:inline-block;margin-left:4px;padding:3px 7px;background:#0284c7;color:#fff;border-radius:6px;font-size:10.5px;text-decoration:none;font-weight:700">&#128196; Invoice</a><?php endif; ?>
+          </td>
+        </tr>
+        <?php endforeach; ?>
+      </table>
+
+      <div class="pay-box">
+        <div style="font-size:14px;font-weight:800;color:#38bdf8">Metode Pembayaran Tagihan</div>
+        <p style="font-size:12px;color:#94a3b8;margin-top:4px;line-height:1.45">Silakan transfer sesuai nominal tagihan ke rekening di bawah ini atau unduh kode QRIS untuk pembayaran instan:</p>
+        <div class="rek-item">
+          <div style="font-size:10.5px;color:#94a3b8;font-weight:700">TRANSFER BANK</div>
+          <div style="font-size:15.5px;font-weight:800;color:#fff;margin-top:2px"><?= htmlspecialchars($bank) ?></div>
+        </div>
+        <div class="rek-item" style="border-left-color:#22c55e">
+          <div style="font-size:10.5px;color:#94a3b8;font-weight:700">E-WALLET (DANA / OVO / GOPAY)</div>
+          <div style="font-size:15.5px;font-weight:800;color:#fff;margin-top:2px"><?= htmlspecialchars($ewallet) ?></div>
         </div>
         <?php if (!empty($qris) && file_exists(__DIR__.'/'.$qris)): ?>
-          <div style="text-align:center;margin-top:10px">
+          <div style="text-align:center">
             <img src="<?= htmlspecialchars($qris) ?>" class="qris" alt="QRIS">
-            <a href="<?= htmlspecialchars($qris) ?>" download="QRIS_Pembayaran_WiFi.png" style="display:inline-block;margin-top:10px;padding:9px 16px;background:#0284c7;color:#fff;font-size:12.5px;font-weight:700;border-radius:8px;text-decoration:none">&#11015; Unduh / Simpan Gambar QRIS</a>
+            <a href="<?= htmlspecialchars($qris) ?>" download="QRIS_<?= preg_replace('/\W+/','_',$nama_isp) ?>.png" style="display:inline-block;margin-top:10px;padding:9px 16px;background:#0284c7;color:#fff;font-size:12.5px;font-weight:700;border-radius:9px;text-decoration:none">&#11015; Unduh / Simpan Gambar QRIS</a>
           </div>
         <?php endif; ?>
       </div>
+
+      <?php $wa_txt = urlencode("Halo Admin $nama_isp, saya *{$pel['nama']}* ingin konfirmasi pembayaran tagihan Wi-Fi sebesar Rp " . number_format($total_tunggakan ?: ($pel['harga']??0),0,',','.')); ?>
+      <a href="https://wa.me/<?= $no_cs ?>?text=<?= $wa_txt ?>" target="_blank" class="btn btn-wa">&#128172; Konfirmasi Pembayaran via WhatsApp</a>
     </div>
-    <table>
-      <tr><th>Periode</th><th>Nominal</th><th>Status</th></tr>
-      <?php if (empty($tagihan)): ?><tr><td colspan="3" style="text-align:center;color:#94a3b8">Belum ada catatan tagihan tercetak.</td></tr><?php endif; ?><?php foreach ($tagihan as $t): ?>
-      <tr>
-        <td><?= htmlspecialchars($t['bulan_tahun'] ?? '-') ?></td>
-        <td>Rp <?= number_format($t['jumlah'] ?? 0,0,',','.') ?></td>
-        <td><span class="badge <?= $t['status']=='lunas'?'lunas':'belum' ?>"><?= $t['status']=='lunas'?'LUNAS':'BELUM BAYAR' ?></span><?php if($t['status']=='lunas'): ?> <a href="cetak_invoice_pdf.php?id=<?= (int)$t['id'] ?>" target="_blank" style="display:inline-block;margin-left:4px;padding:2px 7px;background:#0284c7;color:#fff;border-radius:5px;font-size:10px;text-decoration:none;font-weight:700">&#128196; Invoice</a><?php endif; ?></td>
-      </tr>
-      <?php endforeach; ?>
-    </table>
-    <?php $wa_txt = urlencode("Halo Admin $nama_isp, saya *{$pel['nama']}* ingin konfirmasi pembayaran tagihan Wi-Fi sebesar Rp " . number_format($total_tunggakan ?: ($pel['harga']??0),0,',','.')); ?>
-    <a href="https://wa.me/<?= $no_cs ?>?text=<?= $wa_txt ?>" target="_blank" class="btn btn-wa">Konfirmasi Pembayaran via WhatsApp</a>
   <?php endif; ?>
+
+  <div style="text-align:center;font-size:12px;color:#64748b;margin-top:8px">Layanan Bantuan CS: <b style="color:#94a3b8"><?= htmlspecialchars($no_cs_raw) ?></b></div>
 </div>
 </body>
 </html>
