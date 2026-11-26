@@ -53,6 +53,9 @@ th,td{padding:9px;border-bottom:1px solid #e2e8f0;text-align:left}th{background:
 #dnaTopHeader{position:fixed !important;top:0 !important;left:0 !important;right:0 !important;z-index:990 !important;background:#fff !important;box-shadow:0 2px 10px rgba(0,0,0,0.12) !important;padding:10px 12px !important;margin:0 !important;}
 body{padding-top:66px !important;}
 @media(min-width:769px){#dnaTopHeader{left:230px !important;}}
+
+#dnaLiveClock{background:linear-gradient(135deg,#0284c7,#1e40af) !important;color:#ffffff !important;border:1px solid rgba(125,211,252,0.45) !important;border-radius:10px !important;padding:5px 10px !important;text-align:center !important;line-height:1.15 !important;box-shadow:0 3px 10px rgba(2,132,199,0.28) !important;font-variant-numeric:tabular-nums !important;white-space:nowrap !important;}
+@media(max-width:480px){#dnaTopHeader h1,#dnaTopHeader .page-title{font-size:13px !important;}#dnaTopHeader a[href*='logout']{padding:6px 8px !important;font-size:11px !important;}}
 </style></head><body>
 
 <div id="dnaLoader"><img src="/assets/icon-192.png" class="spin-logo" alt="Loading"></div>
