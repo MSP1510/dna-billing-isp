@@ -67,14 +67,28 @@ if ($q !== '') {
       <div><b>Pelanggan:</b> <?= htmlspecialchars($pel['nama']) ?></div>
       <div><b>Paket:</b> <?= htmlspecialchars($pel['nama_paket'] ?? '-') ?> (Rp <?= number_format($pel['harga'] ?? 0,0,',','.') ?>/bln)</div>
       <div><b>Status Layanan:</b> <span class="badge <?= ($pel['status']??'')=='isolir'?'belum':'lunas' ?>"><?= strtoupper($pel['status'] ?? 'AKTIF') ?></span></div>
-      <div style="margin-top:8px;padding-top:8px;border-top:1px dashed #334155">
-        <b>Transfer Pembayaran:</b><br>Bank: <?= htmlspecialchars($bank) ?><br>E-Wallet: <?= htmlspecialchars($ewallet) ?>
-        <?php if (!empty($qris) && file_exists(__DIR__.'/'.$qris)): ?><img src="<?= htmlspecialchars($qris) ?>" class="qris" alt="QRIS"><?php endif; ?>
+      <div style="margin-top:12px;padding:14px;border-radius:10px;background:#1e293b;border:1px solid #38bdf8">
+        <div style="font-size:14px;font-weight:800;color:#38bdf8;margin-bottom:6px">Informasi Pembayaran Tagihan</div>
+        <p style="font-size:12.5px;color:#cbd5e1;margin-bottom:10px;line-height:1.5">Silakan lakukan pembayaran tagihan Wi-Fi Anda melalui transfer rekening, E-Wallet, atau scan kode QRIS di bawah ini agar layanan internet tetap aktif lancar:</p>
+        <div style="background:#0f172a;padding:10px 12px;border-radius:8px;margin-bottom:8px;border-left:4px solid #38bdf8">
+          <div style="font-size:11px;color:#94a3b8;text-transform:uppercase;font-weight:700">Transfer Bank</div>
+          <div style="font-size:16px;font-weight:800;color:#ffffff;letter-spacing:0.3px;margin-top:2px"><?= htmlspecialchars($bank) ?></div>
+        </div>
+        <div style="background:#0f172a;padding:10px 12px;border-radius:8px;margin-bottom:10px;border-left:4px solid #22c55e">
+          <div style="font-size:11px;color:#94a3b8;text-transform:uppercase;font-weight:700">Transfer E-Wallet</div>
+          <div style="font-size:16px;font-weight:800;color:#ffffff;letter-spacing:0.3px;margin-top:2px"><?= htmlspecialchars($ewallet) ?></div>
+        </div>
+        <?php if (!empty($qris) && file_exists(__DIR__.'/'.$qris)): ?>
+          <div style="text-align:center;margin-top:10px">
+            <img src="<?= htmlspecialchars($qris) ?>" class="qris" alt="QRIS">
+            <a href="<?= htmlspecialchars($qris) ?>" download="QRIS_Pembayaran_WiFi.png" style="display:inline-block;margin-top:10px;padding:9px 16px;background:#0284c7;color:#fff;font-size:12.5px;font-weight:700;border-radius:8px;text-decoration:none">&#11015; Unduh / Simpan Gambar QRIS</a>
+          </div>
+        <?php endif; ?>
       </div>
     </div>
     <table>
       <tr><th>Periode</th><th>Nominal</th><th>Status</th></tr>
-      <?php foreach ($tagihan as $t): ?>
+      <?php if (empty($tagihan)): ?><tr><td colspan="3" style="text-align:center;color:#94a3b8">Belum ada catatan tagihan tercetak.</td></tr><?php endif; ?><?php foreach ($tagihan as $t): ?>
       <tr>
         <td><?= htmlspecialchars($t['bulan_tahun'] ?? '-') ?></td>
         <td>Rp <?= number_format($t['jumlah'] ?? 0,0,',','.') ?></td>
