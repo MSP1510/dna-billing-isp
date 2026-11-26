@@ -1,3 +1,10 @@
+<style>
+.dna-grid4 > div:nth-child(1),.dna-kpi-grid > div:nth-child(1){background:linear-gradient(135deg,#065f46,#047857) !important;border:1px solid rgba(52,211,153,0.45) !important;}
+.dna-grid4 > div:nth-child(2),.dna-kpi-grid > div:nth-child(2){background:linear-gradient(135deg,#7f1d1d,#b91c1c) !important;border:1px solid rgba(248,113,113,0.45) !important;}
+.dna-grid4 > div:nth-child(3),.dna-kpi-grid > div:nth-child(3){background:linear-gradient(135deg,#1e3a8a,#0284c7) !important;border:1px solid rgba(56,189,248,0.45) !important;}
+.dna-grid4 > div:nth-child(4),.dna-kpi-grid > div:nth-child(4){background:linear-gradient(135deg,#78350f,#b45309) !important;border:1px solid rgba(251,191,36,0.45) !important;}
+.dna-grid4 > div *,.dna-kpi-grid > div *{color:#ffffff !important;}
+</style>
 <?php
 $routers_q = mysqli_query($conn, "SELECT id, nama_nas, ip_address FROM routers ORDER BY id ASC");
 $router_list = [];

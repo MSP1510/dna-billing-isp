@@ -58,6 +58,22 @@ body{padding-top:66px !important;}
 @media(max-width:480px){#dnaTopHeader h1,#dnaTopHeader .page-title{font-size:13px !important;}#dnaTopHeader a[href*='logout']{padding:6px 8px !important;font-size:11px !important;}}
 
 @media(max-width:480px){#dnaTopHeader h1,#dnaTopHeader .ttl{font-size:13px !important;white-space:nowrap !important;}}
+
+/* Modern Gradient Multi-Color Theme untuk Semua Halaman */
+body{background:#0b1120 !important;color:#f1f5f9 !important;}
+#dnaTopHeader{background:rgba(15,23,42,0.92) !important;backdrop-filter:blur(12px) !important;border-bottom:1px solid #1e293b !important;color:#f8fafc !important;}
+#dnaTopHeader h1,#dnaTopHeader .ttl{color:#f8fafc !important;}
+#dnaTopHeader small,#dnaTopHeader div{color:#94a3b8;}
+.side{background:linear-gradient(180deg,#0f172a,#020617) !important;border-right:1px solid #1e293b !important;}
+.card,.box,.panel,.dna-card{background:linear-gradient(145deg,#1e293b,#0f172a) !important;border:1px solid #334155 !important;border-radius:16px !important;color:#f8fafc !important;box-shadow:0 8px 24px rgba(0,0,0,0.35) !important;}
+.card h2,.card h3,.card h4,.box h3,.dna-card h3{color:#38bdf8 !important;}
+table{color:#e2e8f0 !important;}
+table th{background:#0f172a !important;color:#38bdf8 !important;border-bottom:1px solid #334155 !important;}
+table td{border-bottom:1px solid rgba(51,65,85,0.6) !important;color:#f1f5f9 !important;}
+tr:hover td{background:rgba(56,189,248,0.06) !important;}
+input,select,textarea{background:#0f172a !important;color:#ffffff !important;border:1px solid #475569 !important;border-radius:10px !important;}
+input:focus,select:focus,textarea:focus{border-color:#38bdf8 !important;outline:none !important;}
+label{color:#cbd5e1 !important;}
 </style></head><body>
 
 <div id="dnaLoader"><img src="/assets/icon-192.png" class="spin-logo" alt="Loading"></div>
