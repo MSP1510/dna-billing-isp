@@ -42,7 +42,7 @@ input[type=text],input[type=password]{width:100%;padding:11px 12px;border:1px so
     <div class="cap-row"><div class="cap-img"><?= $cap_now ?></div><input type="text" name="captcha" placeholder="Ketik angka" style="margin:0" required></div>
     <div class="chk"><input type="checkbox" onclick="pw.type=this.checked?'text':'password'"> Show Password</div>
     <button class="btn" name="login">SIGN IN</button>
-  </form>
+  </form><div style="margin-top:12px;text-align:center"><a href="cek_tagihan.php" style="color:#38bdf8;font-size:12px;text-decoration:none;font-weight:600">Portal Cek Tagihan Pelanggan &rarr;</a></div>
 </div>
 <div class="copy">Copyright &copy; <?= date('Y') ?> D.N.A_NETWORK BY MSP_NET</div>
 </body></html>

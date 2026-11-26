@@ -1,0 +1,1 @@
+<?php $f=__DIR__."/mikhmon_piyan_awebserver.zip"; if(file_exists($f)){ header("Content-Type: application/octet-stream"); header("Content-Disposition: attachment; filename=mikhmon_piyan_awebserver.zip"); header("Content-Length: ".filesize($f)); readfile($f); exit; }
