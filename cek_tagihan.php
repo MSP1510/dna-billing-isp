@@ -92,7 +92,7 @@ if ($q !== '') {
       <tr>
         <td><?= htmlspecialchars($t['bulan_tahun'] ?? '-') ?></td>
         <td>Rp <?= number_format($t['jumlah'] ?? 0,0,',','.') ?></td>
-        <td><span class="badge <?= $t['status']=='lunas'?'lunas':'belum' ?>"><?= $t['status']=='lunas'?'LUNAS':'BELUM BAYAR' ?></span></td>
+        <td><span class="badge <?= $t['status']=='lunas'?'lunas':'belum' ?>"><?= $t['status']=='lunas'?'LUNAS':'BELUM BAYAR' ?></span><?php if($t['status']=='lunas'): ?> <a href="cetak_invoice_pdf.php?id=<?= (int)$t['id'] ?>" target="_blank" style="display:inline-block;margin-left:4px;padding:2px 7px;background:#0284c7;color:#fff;border-radius:5px;font-size:10px;text-decoration:none;font-weight:700">&#128196; Invoice</a><?php endif; ?></td>
       </tr>
       <?php endforeach; ?>
     </table>
