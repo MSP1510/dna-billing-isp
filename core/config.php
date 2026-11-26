@@ -24,3 +24,13 @@ if (!function_exists('cekAkses')) {
 
 require_once __DIR__ . '/mikrotik.php';
 $api = new RouterosAPI();
+
+// Auto-deteksi URL Tunnel aktif untuk link portal WhatsApp
+$url_cache = __DIR__ . '/active_url.txt';
+if (!empty($_SERVER['HTTP_HOST']) && strpos($_SERVER['HTTP_HOST'], '127.0.0.1') === false && strpos($_SERVER['HTTP_HOST'], '10.20.30.') === false) {
+    $proto = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') || ($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '') === 'https' ? 'https' : 'http';
+    $BASE_PORTAL_URL = $proto . '://' . $_SERVER['HTTP_HOST'];
+    @file_put_contents($url_cache, $BASE_PORTAL_URL);
+} else {
+    $BASE_PORTAL_URL = file_exists($url_cache) ? trim(file_get_contents($url_cache)) : 'https://liabilities-compiled-nickel-paintings.trycloudflare.com';
+}
