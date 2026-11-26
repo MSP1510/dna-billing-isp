@@ -56,6 +56,8 @@ body{padding-top:66px !important;}
 
 #dnaLiveClock{background:linear-gradient(135deg,#0284c7,#1e40af) !important;color:#ffffff !important;border:1px solid rgba(125,211,252,0.45) !important;border-radius:10px !important;padding:5px 10px !important;text-align:center !important;line-height:1.15 !important;box-shadow:0 3px 10px rgba(2,132,199,0.28) !important;font-variant-numeric:tabular-nums !important;white-space:nowrap !important;}
 @media(max-width:480px){#dnaTopHeader h1,#dnaTopHeader .page-title{font-size:13px !important;}#dnaTopHeader a[href*='logout']{padding:6px 8px !important;font-size:11px !important;}}
+
+@media(max-width:480px){#dnaTopHeader h1,#dnaTopHeader .ttl{font-size:13px !important;white-space:nowrap !important;}}
 </style></head><body>
 
 <div id="dnaLoader"><img src="/assets/icon-192.png" class="spin-logo" alt="Loading"></div>
@@ -101,8 +103,8 @@ body{padding-top:66px !important;}
       <div><b style="font-size:13px"><?= strtoupper($page) ?></b><br><small style="font-size:10px;color:#64748b"><?= $_SESSION['nama'] ?> (<?= strtoupper($role) ?>)</small></div>
     </div>
     <div style="display:flex;align-items:center;gap:6px">
-      <div id="jamDigital" style="background:#0f172a;color:#38bdf8;padding:5px 8px;border-radius:5px;font-family:monospace;font-size:11px;font-weight:700">--:--:--</div>
-      <a href="?logout=1" class="btn btn-r" style="padding:6px 10px;font-size:11px">Logout</a>
+      <div id="jamDigital" style="background:linear-gradient(135deg,#0284c7,#1d4ed8);color:#ffffff;padding:5px 10px;border-radius:10px;border:1px solid rgba(186,230,253,0.5);box-shadow:0 3px 10px rgba(2,132,199,0.3);text-align:center;line-height:1.15;white-space:nowrap;font-variant-numeric:tabular-nums">--:--:--</div>
+      <a href="?logout=1" class="btn btn-r" style="padding:6px 8px;font-size:11px;white-space:nowrap">Logout</a>
     </div>
   </div>
   <div class="wrap">
@@ -116,7 +118,9 @@ function updJam(){
   const h = ['Min','Sen','Sel','Rab','Kam','Jum','Sab'][n.getDay()];
   const b = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'][n.getMonth()];
   const p = v => String(v).padStart(2,'0');
-  document.getElementById('jamDigital').innerText = `${h}, ${p(n.getDate())} ${b} | ${p(n.getHours())}:${p(n.getMinutes())}:${p(n.getSeconds())}`;
+  const tgl = `${h}, ${p(n.getDate())} ${b} ${n.getFullYear()}`;
+  const wkt = `${p(n.getHours())}:${p(n.getMinutes())}:${p(n.getSeconds())}`;
+  document.getElementById('jamDigital').innerHTML = `<div style="font-size:9.5px;opacity:0.92;font-weight:600">${tgl}</div><div style="font-size:12.5px;font-weight:800;letter-spacing:0.5px">${wkt} <span style="font-size:9px;opacity:0.85">WIB</span></div>`;
 }
 updJam(); setInterval(updJam, 1000);
 window.addEventListener('load', () => { document.getElementById('dnaLoader').style.display = 'none'; });
