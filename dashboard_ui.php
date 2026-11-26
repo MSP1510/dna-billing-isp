@@ -59,21 +59,27 @@ body{padding-top:66px !important;}
 
 @media(max-width:480px){#dnaTopHeader h1,#dnaTopHeader .ttl{font-size:13px !important;white-space:nowrap !important;}}
 
-/* Modern Gradient Multi-Color Theme untuk Semua Halaman */
-body{background:#0b1120 !important;color:#f1f5f9 !important;}
-#dnaTopHeader{background:rgba(15,23,42,0.92) !important;backdrop-filter:blur(12px) !important;border-bottom:1px solid #1e293b !important;color:#f8fafc !important;}
-#dnaTopHeader h1,#dnaTopHeader .ttl{color:#f8fafc !important;}
-#dnaTopHeader small,#dnaTopHeader div{color:#94a3b8;}
-.side{background:linear-gradient(180deg,#0f172a,#020617) !important;border-right:1px solid #1e293b !important;}
-.card,.box,.panel,.dna-card{background:linear-gradient(145deg,#1e293b,#0f172a) !important;border:1px solid #334155 !important;border-radius:16px !important;color:#f8fafc !important;box-shadow:0 8px 24px rgba(0,0,0,0.35) !important;}
-.card h2,.card h3,.card h4,.box h3,.dna-card h3{color:#38bdf8 !important;}
-table{color:#e2e8f0 !important;}
-table th{background:#0f172a !important;color:#38bdf8 !important;border-bottom:1px solid #334155 !important;}
-table td{border-bottom:1px solid rgba(51,65,85,0.6) !important;color:#f1f5f9 !important;}
-tr:hover td{background:rgba(56,189,248,0.06) !important;}
-input,select,textarea{background:#0f172a !important;color:#ffffff !important;border:1px solid #475569 !important;border-radius:10px !important;}
-input:focus,select:focus,textarea:focus{border-color:#38bdf8 !important;outline:none !important;}
-label{color:#cbd5e1 !important;}
+
+/* Luxury Bright & Dynamic Gradient Theme */
+body{background:linear-gradient(180deg,#f8fafc 0%,#e2e8f0 100%) !important;color:#0f172a !important;}
+#dnaTopHeader{background:rgba(255,255,255,0.92) !important;backdrop-filter:blur(14px) !important;border-bottom:1px solid #cbd5e1 !important;box-shadow:0 4px 16px rgba(15,23,42,0.06) !important;color:#0f172a !important;}
+#dnaTopHeader h1,#dnaTopHeader .ttl{color:#0f172a !important;font-weight:800 !important;}
+#dnaTopHeader small{color:#475569;} #jamDigital,#jamDigital *{color:#ffffff !important;}
+.menu-btn{background:#f1f5f9 !important;color:#0f172a !important;border:1px solid #cbd5e1 !important;}
+.side{background:linear-gradient(180deg,#ffffff 0%,#f1f5f9 100%) !important;border-right:1px solid #cbd5e1 !important;box-shadow:4px 0 24px rgba(15,23,42,0.08) !important;}
+.side .brand{background:linear-gradient(135deg,#0284c7,#1d4ed8) !important;color:#ffffff !important;}
+.side .brand small{color:#e0f2fe !important;}
+.side .menu a{color:#334155 !important;font-weight:600 !important;}
+.side .menu a:hover,.side .menu a.act,.side .menu a.active{background:linear-gradient(135deg,#0284c7,#2563eb) !important;color:#ffffff !important;border-radius:10px !important;box-shadow:0 4px 12px rgba(37,99,235,0.25) !important;}
+.card,.box,.panel,.dna-card{background:#ffffff !important;border:1px solid #e2e8f0 !important;border-radius:18px !important;color:#0f172a !important;box-shadow:0 8px 24px rgba(15,23,42,0.06) !important;}
+.card h2,.card h3,.card h4,.box h3,.dna-card h3{color:#0284c7 !important;font-weight:800 !important;}
+table{color:#1e293b !important;}
+table th{background:linear-gradient(135deg,#0284c7,#1e40af) !important;color:#ffffff !important;border:none !important;}
+table td{border-bottom:1px solid #e2e8f0 !important;color:#1e293b !important;}
+tr:hover td{background:#f0f9ff !important;}
+input,select,textarea{background:#f8fafc !important;color:#0f172a !important;border:1.5px solid #cbd5e1 !important;border-radius:10px !important;}
+input:focus,select:focus,textarea:focus{border-color:#0284c7 !important;background:#ffffff !important;box-shadow:0 0 0 3px rgba(2,132,199,0.15) !important;}
+label{color:#334155 !important;font-weight:700 !important;}
 </style></head><body>
 
 <div id="dnaLoader"><img src="/assets/icon-192.png" class="spin-logo" alt="Loading"></div>

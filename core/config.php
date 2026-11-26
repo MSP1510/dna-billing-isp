@@ -6,7 +6,7 @@ $conn = mysqli_connect("localhost", "dna_admin", "DnaBilling2026", "dna_billing"
 if (!$conn) die("Koneksi database gagal: " . mysqli_connect_error());
 
 $cfg = mysqli_fetch_assoc(mysqli_query($conn, "SELECT * FROM pengaturan WHERE id=1"));
-if (!$cfg) $cfg = ['wa_endpoint'=>'http://127.0.0', 'wa_api_key'=>'dna_secret_2026'];
+if (!$cfg) $cfg = ['wa_endpoint'=>'http://127.0.0.1:3000/send-message', 'wa_api_key'=>'dna_secret_2026'];
 
 if (!function_exists('punyaAkses')) {
     function punyaAkses($m) {
@@ -18,7 +18,7 @@ if (!function_exists('punyaAkses')) {
 }
 if (!function_exists('cekAkses')) {
     function cekAkses($roles = []) {
-        if (empty($_SESSION['user_id'])) { header("Location: index.php"); exit; }
+        if (empty($_SESSION['user_id'])) { header("Location: index.php"); exit; } if (!empty($roles) && !in_array($_SESSION['role'] ?? '', $roles)) { die("Akses Ditolak"); }
     }
 }
 

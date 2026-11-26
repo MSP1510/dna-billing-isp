@@ -1,4 +1,7 @@
-<?php cekAkses(['owner','admin','teknisi']);
+<?php
+$f_rid = isset($_GET['rid']) ? (int)$_GET['rid'] : 0;
+$w_rt = $f_rid > 0 ? "WHERE id=$f_rid" : "ORDER BY id ASC";
+ cekAkses(['owner','admin','teknisi']);
 function durasiKeDetik($str) {
     $d = 0;
     if (preg_match('/(\d+)w/', $str, $m)) $d += (int)$m[1] * 604800;
@@ -12,18 +15,18 @@ function durasiKeDetik($str) {
 // Kick manual user (PPPoE atau Hotspot)
 if (isset($_GET['kick_ppp']) && isset($_GET['rid'])) {
     $rid = (int)$_GET['rid']; $usr = $_GET['kick_ppp'];
-    $rt = mysqli_fetch_assoc(mysqli_query($conn, "SELECT * FROM routers WHERE id=$rid"));
+    $rt = mysqli_fetch_assoc(mysqli_query($conn, "SELECT * FROM routers ".$w_rt." WHERE id=$rid"));
     if ($rt && $api->connect($rt['ip_address'], $rt['username'], $rt['password'], $rt['port'])) {
         $act = $api->comm('/ppp/active/print'); $cur = [];
         foreach ($act as $l) {
-            if ($l == '!re') { if (($cur['name']??'') == $usr && !empty($cur['id'])) $api->comm('/ppp/active/remove', ['=.id='.$cur['id']]); $cur = []; }
+            if ($l == '!re') { if (($cur['name']??'') == $usr && !empty($cur['id'])) $api->comm('/ppp/active/remove', ['.id' => $cur['id']]); $cur = []; }
             elseif (strpos($l,'=.id=')===0) $cur['id'] = substr($l,5);
             elseif (strpos($l,'=name=')===0) $cur['name'] = substr($l,6);
         }
-        if (($cur['name']??'') == $usr && !empty($cur['id'])) $api->comm('/ppp/active/remove', ['=.id='.$cur['id']]);
+        if (($cur['name']??'') == $usr && !empty($cur['id'])) $api->comm('/ppp/active/remove', ['.id' => $cur['id']]);
         $api->disconnect();
     }
-    echo "<script>location.href='?page=session';</script>"; exit;
+    echo "<script>location.href='?page=session&rid='.$f_rid;</script>"; exit;
 }
 if (isset($_GET['kick_hs']) && isset($_GET['rid'])) {
     $rid = (int)$_GET['rid']; $usr = $_GET['kick_hs'];
@@ -31,14 +34,14 @@ if (isset($_GET['kick_hs']) && isset($_GET['rid'])) {
     if ($rt && $api->connect($rt['ip_address'], $rt['username'], $rt['password'], $rt['port'])) {
         $act = $api->comm('/ip/hotspot/active/print'); $cur = [];
         foreach ($act as $l) {
-            if ($l == '!re') { if (($cur['user']??'') == $usr && !empty($cur['id'])) $api->comm('/ip/hotspot/active/remove', ['=.id='.$cur['id']]); $cur = []; }
+            if ($l == '!re') { if (($cur['user']??'') == $usr && !empty($cur['id'])) $api->comm('/ip/hotspot/active/remove', ['.id' => $cur['id']]); $cur = []; }
             elseif (strpos($l,'=.id=')===0) $cur['id'] = substr($l,5);
             elseif (strpos($l,'=user=')===0) $cur['user'] = substr($l,6);
         }
-        if (($cur['user']??'') == $usr && !empty($cur['id'])) $api->comm('/ip/hotspot/active/remove', ['=.id='.$cur['id']]);
+        if (($cur['user']??'') == $usr && !empty($cur['id'])) $api->comm('/ip/hotspot/active/remove', ['.id' => $cur['id']]);
         $api->disconnect();
     }
-    echo "<script>location.href='?page=session';</script>"; exit;
+    echo "<script>location.href='?page=session&rid='.$f_rid;</script>"; exit;
 }
 // Pembersihan otomatis user Hotspot yang sudah melewati batas durasi (RADIUS radacct & MikroTik)
 $hapus_cnt = 0;
@@ -59,17 +62,17 @@ while ($vx = mysqli_fetch_assoc($q_exp)) {
 $ses_ppp = []; $ses_hs = [];
 $qr = mysqli_query($conn, "SELECT * FROM routers ORDER BY id ASC");
 while ($rt = mysqli_fetch_assoc($qr)) {
-    if ($api->connect($rt['ip_address'], $rt['username'], $rt['password'], $rt['port'])) {
+    $api->timeout = 1; if ($api->connect($rt['ip_address'], $rt['username'], $rt['password'], $rt['port'])) {
         // Ambil PPPoE Active
         $act = $api->comm('/ppp/active/print'); $cur = [];
         foreach ($act as $l) {
-            if ($l == '!re') { if(!empty($cur['name'])){ $cur['router']=$rt['nama_router']; $cur['rid']=$rt['id']; $ses_ppp[]=$cur; } $cur=[]; }
+            if ($l == '!re') { if(!empty($cur['name'])){ $cur['router']=$rt['nama_nas']; $cur['rid']=$rt['id']; $ses_ppp[]=$cur; } $cur=[]; }
             elseif (strpos($l,'=name=')===0) $cur['name']=substr($l,6);
             elseif (strpos($l,'=address=')===0) $cur['ip']=substr($l,9);
             elseif (strpos($l,'=uptime=')===0) $cur['up']=substr($l,8);
             elseif (strpos($l,'=caller-id=')===0) $cur['mac']=substr($l,11);
         }
-        if(!empty($cur['name'])){ $cur['router']=$rt['nama_router']; $cur['rid']=$rt['id']; $ses_ppp[]=$cur; }
+        if(!empty($cur['name'])){ $cur['router']=$rt['nama_nas']; $cur['rid']=$rt['id']; $ses_ppp[]=$cur; }
 
         // Hapus user hotspot lokal di MikroTik yang sudah mencapai limit-uptime / expired
         $hsu = $api->comm('/ip/hotspot/user/print'); $cur = [];
@@ -77,7 +80,7 @@ while ($rt = mysqli_fetch_assoc($qr)) {
             if ($l == '!re') {
                 $lim = durasiKeDetik($cur['lim'] ?? ''); $up = durasiKeDetik($cur['up'] ?? '');
                 if (!empty($cur['name']) && (isset($exp_codes[$cur['name']]) || ($lim > 0 && $up >= $lim))) {
-                    if (!empty($cur['id'])) $api->comm('/ip/hotspot/user/remove', ['=.id='.$cur['id']]);
+                    if (!empty($cur['id'])) $api->comm('/ip/hotspot/user/remove', ['.id' => $cur['id']]);
                     $exp_codes[$cur['name']] = true; $hapus_cnt++;
                 }
                 $cur = [];
@@ -93,8 +96,8 @@ while ($rt = mysqli_fetch_assoc($qr)) {
         foreach ($hsa as $l) {
             if ($l == '!re') {
                 if (!empty($cur['user'])) {
-                    if (isset($exp_codes[$cur['user']]) && !empty($cur['id'])) { $api->comm('/ip/hotspot/active/remove', ['=.id='.$cur['id']]); }
-                    else { $cur['router']=$rt['nama_router']; $cur['rid']=$rt['id']; $ses_hs[]=$cur; }
+                    if (isset($exp_codes[$cur['user']]) && !empty($cur['id'])) { $api->comm('/ip/hotspot/active/remove', ['.id' => $cur['id']]); }
+                    else { $cur['router']=$rt['nama_nas']; $cur['rid']=$rt['id']; $ses_hs[]=$cur; }
                 }
                 $cur = [];
             }
@@ -106,23 +109,24 @@ while ($rt = mysqli_fetch_assoc($qr)) {
             elseif (strpos($l,'=mac-address=')===0) $cur['mac']=substr($l,13);
         }
         if (!empty($cur['user'])) {
-            if (isset($exp_codes[$cur['user']]) && !empty($cur['id'])) { $api->comm('/ip/hotspot/active/remove', ['=.id='.$cur['id']]); }
-            else { $cur['router']=$rt['nama_router']; $cur['rid']=$rt['id']; $ses_hs[]=$cur; }
+            if (isset($exp_codes[$cur['user']]) && !empty($cur['id'])) { $api->comm('/ip/hotspot/active/remove', ['.id' => $cur['id']]); }
+            else { $cur['router']=$rt['nama_nas']; $cur['rid']=$rt['id']; $ses_hs[]=$cur; }
         }
         $api->disconnect();
     }
 }
 ?>
-<?php if($hapus_cnt > 0): ?>
+<?php if(isset($_GET['refresh']) && $hapus_cnt == 0): ?><div class="card" style="background:#ecfdf5;border-left:5px solid #10b981;color:#065f46;font-size:12px;margin-bottom:12px;"><b>Sinkronisasi Selesai:</b> Sesi PPPoE & Hotspot seluruh router berhasil diperbarui (0 voucher expired).</div><?php endif; ?><?php if($hapus_cnt > 0): ?>
 <div class="card" style="background:#fef2f2;border-left:5px solid #ef4444;color:#991b1b;font-size:12px">
   <b>Pembersihan Otomatis:</b> <?= $hapus_cnt ?> voucher/user Hotspot yang telah melewati batas durasi berhasil dihapus otomatis dari MikroTik & database!
 </div>
 <?php endif; ?>
 
+<div class="card" style="margin-bottom:12px;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;"><b style="font-size:13px;color:#0f172a;">Filter Router MikroTik</b><select onchange="location.href='?page=session&rid='+this.value" style="padding:8px 12px;border-radius:8px;border:1px solid #cbd5e1;font-weight:700;font-size:13px;background:#fff;color:#0f172a;"><option value="0">Semua Router (Total Gabungan)</option><?php $qr_f=mysqli_query($conn,"SELECT id,nama_nas FROM routers ORDER BY id ASC");while($rf=mysqli_fetch_assoc($qr_f)){ $sl=($f_rid==(int)$rf["id"])?"selected":""; echo "<option value='{$rf['id']}' $sl>MikroTik: ".htmlspecialchars($rf["nama_nas"])."</option>"; } ?></select></div>
 <div class="card" style="border-top:4px solid #0284c7">
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
     <h4>1. Session PPPoE Online (<?= count($ses_ppp) ?> Aktif)</h4>
-    <a href="?page=session" class="btn" style="padding:4px 8px;font-size:11px">Refresh & Bersihkan Expired</a>
+    <a href="?page=session&rid=<?= $f_rid ?>&refresh=1" class="btn" style="padding:4px 8px;font-size:11px">Refresh & Bersihkan Expired</a>
   </div>
   <div style="overflow-x:auto"><table>
     <tr><th>Router</th><th>User PPPoE</th><th>IP Address</th><th>Uptime</th><th>MAC</th><th>Aksi</th></tr>

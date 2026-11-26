@@ -1,4 +1,6 @@
 <?php
+$f_rid = isset($_GET['rid']) ? (int)$_GET['rid'] : 0;
+
 if (isset($_GET['sync_mt'])) { echo "<div class='card' style='border-left:5px solid #00a65a'>Sinkronisasi MikroTik selesai!</div>"; }
 
 echo "<div style=margin-bottom:10px><a href=?page=pelanggan&sync_mt=1 class=btn>Tarik Semua Pelanggan dari MikroTik</a></div>";
@@ -39,7 +41,7 @@ if (isset($_POST['add_pel'])) {
     $own = $_SESSION['nama'];
     mysqli_query($conn,"INSERT INTO pelanggan (kode_pel,nama,no_wa,paket_id,tipe_layanan,pppoe_user,ip_static,router_id,odp_id,lat,lng,jatuh_tempo,owner_data) VALUES ('$kode','$_POST[n]','$_POST[w]',$pid_pkt,'$_POST[t]','$_POST[u]','$_POST[ip]',$rid,$oid,'$_POST[lat]','$_POST[lng]','$jt','$own')");
     $pid = mysqli_insert_id($conn);
-    $p = mysqli_fetch_assoc(mysqli_query($conn,"SELECT * FROM pelanggan WHERE id=$pid"));
+    $p = mysqli_fetch_assoc(mysqli_query($conn,"SELECT * FROM pelanggan WHERE ".($f_rid>0?"router_id=$f_rid AND ":"")." id=$pid"));
     $pk = mysqli_fetch_assoc(mysqli_query($conn,"SELECT * FROM paket WHERE id=$pid_pkt"));
     mysqli_query($conn,"INSERT INTO tagihan (no_invoice,pelanggan_id,bulan_tahun,jumlah) VALUES ('INV-$kode',$pid,'".date('m-Y')."','".($pk['harga']??0)."')");
     sinkronMikrotik($conn, $api, $p, $pk, 'aktif');
@@ -49,7 +51,7 @@ if (isset($_POST['add_pel'])) {
 if (isset($_POST['edit_pel'])) {
     $id = (int)$_POST['id_pel']; $pid_pkt = (int)$_POST['p']; $rid = (int)$_POST['nas'];
     mysqli_query($conn,"UPDATE pelanggan SET nama='$_POST[n]', no_wa='$_POST[w]', paket_id=$pid_pkt, router_id=$rid, tipe_layanan='$_POST[t]', pppoe_user='$_POST[u]', ip_static='$_POST[ip]', jatuh_tempo='$_POST[jt]' WHERE id=$id");
-    $p = mysqli_fetch_assoc(mysqli_query($conn,"SELECT * FROM pelanggan WHERE id=$id"));
+    $p = mysqli_fetch_assoc(mysqli_query($conn,"SELECT * FROM pelanggan WHERE ".($f_rid>0?"router_id=$f_rid AND ":"")." id=$id"));
     $pk = mysqli_fetch_assoc(mysqli_query($conn,"SELECT * FROM paket WHERE id=$pid_pkt"));
     sinkronMikrotik($conn, $api, $p, $pk, $p['status']);
     echo "<script>location.href='?page=pelanggan';</script>"; exit;
@@ -57,7 +59,7 @@ if (isset($_POST['edit_pel'])) {
 
 if (isset($_GET['act']) && isset($_GET['id'])) {
     $id = (int)$_GET['id']; $act = $_GET['act'];
-    $p = mysqli_fetch_assoc(mysqli_query($conn,"SELECT * FROM pelanggan WHERE id=$id"));
+    $p = mysqli_fetch_assoc(mysqli_query($conn,"SELECT * FROM pelanggan WHERE ".($f_rid>0?"router_id=$f_rid AND ":"")." id=$id"));
     $pk = mysqli_fetch_assoc(mysqli_query($conn,"SELECT * FROM paket WHERE id=".(int)($p['paket_id']??0)));
     if ($act == 'isolir') {
         mysqli_query($conn,"UPDATE pelanggan SET status='isolir' WHERE id=$id");
@@ -85,17 +87,18 @@ if (isset($_GET['act']) && isset($_GET['id'])) {
         $res = kirimWA($conn, $p['no_wa'], $msg, $cfg['url_qris'] ?? '');
         echo "<div class='card' style='border-left:4px solid #00a65a'>Tagihan WA dikirim ke <b>$p[nama] ($p[no_wa])</b>. Respon: <code>$res</code></div>";
     } elseif ($act == 'del') {
-        mysqli_query($conn,"DELETE FROM pelanggan WHERE id=$id");
+        mysqli_query($conn,"DELETE FROM pelanggan WHERE ".($f_rid>0?"router_id=$f_rid AND ":"")." id=$id");
     }
     if ($act != 'wa_tagih') { echo "<script>location.href='?page=pelanggan';</script>"; exit; }
 }
 ?>
 <?php
-$reg_bln = mysqli_num_rows(mysqli_query($conn,"SELECT id FROM pelanggan WHERE MONTH(tgl_daftar)=MONTH(CURDATE())"));
-$ren_bln = mysqli_num_rows(mysqli_query($conn,"SELECT id FROM pelanggan WHERE MONTH(tgl_perpanjang)=MONTH(CURDATE()) AND status='aktif'"));
-$cnt_iso = mysqli_num_rows(mysqli_query($conn,"SELECT id FROM pelanggan WHERE status='isolir'"));
-$cnt_dis = mysqli_num_rows(mysqli_query($conn,"SELECT id FROM pelanggan WHERE status='disable'"));
+$reg_bln = mysqli_num_rows(mysqli_query($conn,"SELECT id FROM pelanggan WHERE ".($f_rid>0?"router_id=$f_rid AND ":"")." MONTH(tgl_daftar)=MONTH(CURDATE())"));
+$ren_bln = mysqli_num_rows(mysqli_query($conn,"SELECT id FROM pelanggan WHERE ".($f_rid>0?"router_id=$f_rid AND ":"")." MONTH(tgl_perpanjang)=MONTH(CURDATE()) AND status='aktif'"));
+$cnt_iso = mysqli_num_rows(mysqli_query($conn,"SELECT id FROM pelanggan WHERE ".($f_rid>0?"router_id=$f_rid AND ":"")." status='isolir'"));
+$cnt_dis = mysqli_num_rows(mysqli_query($conn,"SELECT id FROM pelanggan WHERE ".($f_rid>0?"router_id=$f_rid AND ":"")." status='disable'"));
 ?>
+<div class="card" style="margin-bottom:12px;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;"><b style="font-size:13px;color:#0f172a;">Filter Router MikroTik</b><select onchange="location.href='?page=pelanggan&sub=<?= $sub_p ?>&rid='+this.value" style="padding:8px 12px;border-radius:8px;border:1px solid #cbd5e1;font-weight:700;font-size:13px;background:#fff;color:#0f172a;"><option value="0">Semua Router (Total Gabungan)</option><?php $qr_pl=mysqli_query($conn,"SELECT id,nama_nas FROM routers ORDER BY id ASC");while($rpl=mysqli_fetch_assoc($qr_pl)){$sl=($f_rid==(int)$rpl["id"])?"selected":"";echo "<option value='{$rpl['id']}' $sl>MikroTik: ".htmlspecialchars($rpl["nama_nas"])."</option>";}?></select></div>
 <div class="tiles">
   <div class="tile t-blue"><h2><?= $reg_bln ?></h2><p>Registrasi Bulan Ini</p></div>
   <div class="tile t-green"><h2><?= $ren_bln ?></h2><p>Renewal Bulan Ini</p></div>
@@ -106,9 +109,9 @@ $cnt_dis = mysqli_num_rows(mysqli_query($conn,"SELECT id FROM pelanggan WHERE st
 <div class="card">
   <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:12px">
     <div>
-      <a href="?page=pelanggan&sub=all" class="btn <?= $sub_p=='all'?'btn-g':'' ?>">Semua</a>
-      <a href="?page=pelanggan&sub=pppoe" class="btn <?= $sub_p=='pppoe'?'btn-g':'' ?>">User PPP</a>
-      <a href="?page=pelanggan&sub=static" class="btn <?= $sub_p=='static'?'btn-g':'' ?>">Static IP</a>
+      <a href="?page=pelanggan&rid=<?= $f_rid ?>&sub=all" class="btn <?= $sub_p=='all'?'btn-g':'' ?>">Semua</a>
+      <a href="?page=pelanggan&rid=<?= $f_rid ?>&sub=pppoe" class="btn <?= $sub_p=='pppoe'?'btn-g':'' ?>">User PPP</a>
+      <a href="?page=pelanggan&rid=<?= $f_rid ?>&sub=static" class="btn <?= $sub_p=='static'?'btn-g':'' ?>">Static IP</a>
       <a href="?page=odp" class="btn btn-w">Peta Pelanggan</a>
     </div>
     <input type="text" id="cariPel" onkeyup="filterPel()" placeholder="Search ID / Nama / Paket..." style="width:200px">
@@ -117,7 +120,7 @@ $cnt_dis = mysqli_num_rows(mysqli_query($conn,"SELECT id FROM pelanggan WHERE st
   <details style="margin-bottom:14px;background:#f8fafc;padding:10px;border-radius:6px;border:1px solid #e2e8f0">
     <summary style="cursor:pointer;font-weight:700;color:#00a65a">+ Tambah Pelanggan Baru</summary>
     <form method="POST" style="margin-top:10px">
-      <select name="nas"><?php $qr=mysqli_query($conn,"SELECT * FROM routers"); while($r=mysqli_fetch_assoc($qr)) echo "<option value='$r[id]'>$r[nama_nas]</option>"; ?></select>
+      <select name="nas"><?php $qr=mysqli_query($conn,"SELECT * FROM routers"); while($r=mysqli_fetch_assoc($qr)) $sl_n=($f_rid==(int)$r['id'])?'selected':''; echo "<option value='$r[id]' $sl_n>$r[nama_nas]</option>"; ?></select>
       <select name="odp"><option value="0">-- Pilih ODP --</option><?php $qo=mysqli_query($conn,"SELECT * FROM odp"); while($o=mysqli_fetch_assoc($qo)) echo "<option value='$o[id]'>$o[nama_odp]</option>"; ?></select>
       <input name="n" placeholder="Nama Pelanggan" required>
       <input name="w" placeholder="No WA (08xx)" required>
@@ -179,7 +182,7 @@ $cnt_dis = mysqli_num_rows(mysqli_query($conn,"SELECT id FROM pelanggan WHERE st
       </select>
       <label style="font-size:11px;font-weight:700">Router NAS:</label>
       <select name="nas" id="ed_nas" style="width:100%;margin-bottom:8px">
-        <?php $qr=mysqli_query($conn,"SELECT * FROM routers"); while($r=mysqli_fetch_assoc($qr)) echo "<option value='$r[id]'>$r[nama_nas]</option>"; ?>
+        <?php $qr=mysqli_query($conn,"SELECT * FROM routers"); while($r=mysqli_fetch_assoc($qr)) $sl_n=($f_rid==(int)$r['id'])?'selected':''; echo "<option value='$r[id]' $sl_n>$r[nama_nas]</option>"; ?>
       </select>
       <label style="font-size:11px;font-weight:700">Nama & No WhatsApp:</label>
       <input name="n" id="ed_nama" style="width:100%;margin-bottom:6px" required>

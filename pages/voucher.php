@@ -1,4 +1,6 @@
-<?php cekAkses(['owner','admin','kasir']);
+<?php
+$f_rid = isset($_GET['rid']) ? (int)$_GET['rid'] : 0;
+ cekAkses(['owner','admin','kasir']);
 function acakKodeVoucher($p=8,$t='angka'){
   $k=($t=='huruf')?'ABCDEFGHJKLMNPQRSTUVWXYZ':(($t=='campur')?'23456789ABCDEFGHJKLMNPQRSTUVWXYZ':'0123456789');
   $r=''; $m=strlen($k)-1; for($i=0;$i<$p;$i++)$r.=$k[random_int(0,$m)]; return $r;
@@ -42,7 +44,7 @@ if(isset($_GET['del_mt_user'])&&isset($_GET['rid'])){
   $rid=(int)$_GET['rid']; $usr=$_GET['del_mt_user']; $mtid=$_GET['mtid']??'';
   $rt=mysqli_fetch_assoc(mysqli_query($conn,"SELECT * FROM routers WHERE id=$rid"));
   if($rt && $api->connect($rt['ip_address'],$rt['username'],$rt['password'],$rt['port'])){
-    if($mtid!=='')$api->comm('/ip/hotspot/user/remove',['=.id='.$mtid]);
+    if($mtid!=='')$api->comm('/ip/hotspot/user/remove',['.id' => $mtid]);
     $cur=[]; foreach($api->comm('/ip/hotspot/active/print') as $l){ if($l=='!re'){if(($cur['user']??'')==$usr&&!empty($cur['id']))$api->comm('/ip/hotspot/active/remove',['=.id='.$cur['id']]);$cur=[];} elseif(strpos($l,'=.id=')===0)$cur['id']=substr($l,5); elseif(strpos($l,'=user=')===0)$cur['user']=substr($l,6); }
     if(($cur['user']??'')==$usr&&!empty($cur['id']))$api->comm('/ip/hotspot/active/remove',['=.id='.$cur['id']]); $api->disconnect();
   }
@@ -50,7 +52,7 @@ if(isset($_GET['del_mt_user'])&&isset($_GET['rid'])){
   echo "<script>location.href='?page=voucher';</script>"; exit;
 }
 $mt_list=[]; $hs_logs=[]; $profiles_opt=[]; $comments_opt=[]; $del_exp=0;
-$qr=mysqli_query($conn,"SELECT * FROM routers ORDER BY id ASC");
+$qr=mysqli_query($conn,"SELECT * FROM routers ".($f_rid>0?"WHERE id=$f_rid":"ORDER BY id ASC")."");
 while($rt=mysqli_fetch_assoc($qr)){
   if($api->connect($rt['ip_address'],$rt['username'],$rt['password'],$rt['port'])){
     $akt=[]; $cur=[]; foreach($api->comm('/ip/hotspot/active/print') as $l){ if($l=='!re'){if(!empty($cur['user']))$akt[$cur['user']]=$cur;$cur=[];} elseif(strpos($l,'=.id=')===0)$cur['id']=substr($l,5); elseif(strpos($l,'=user=')===0)$cur['user']=substr($l,6); elseif(strpos($l,'=address=')===0)$cur['ip']=substr($l,9); elseif(strpos($l,'=session-time-left=')===0)$cur['left']=substr($l,19); }
@@ -83,10 +85,11 @@ $fs=trim($_GET['q']??''); $fp=trim($_GET['prof']??''); $fc=trim($_GET['cmt']??''
 $filtered=array_filter($mt_list,function($u)use($fs,$fp,$fc){ if($fs!==''&&stripos($u['name'],$fs)===false)return false; if($fp!==''&&$u['prof']!==$fp)return false; if($fc!==''&&$u['cmt']!==$fc)return false; return true; });
 ?>
 <?php if($del_exp>0): ?><div class="card" style="background:#fef2f2;border-left:5px solid #ef4444;color:#991b1b;font-size:12px"><b>Auto-Clean:</b> <?= $del_exp ?> voucher habis durasi dihapus otomatis!</div><?php endif; ?>
+<div class="card" style="margin-bottom:12px;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;"><b style="font-size:13px;color:#0f172a;">Filter Router MikroTik</b><select onchange="location.href='?page=voucher&rid='+this.value" style="padding:8px 12px;border-radius:8px;border:1px solid #cbd5e1;font-weight:700;font-size:13px;background:#fff;color:#0f172a;"><option value="0">Semua Router (Total Gabungan)</option><?php $qr_v=mysqli_query($conn,"SELECT id,nama_nas FROM routers ORDER BY id ASC");while($rv=mysqli_fetch_assoc($qr_v)){$sl=($f_rid==(int)$rv["id"])?"selected":"";echo "<option value='{$rv['id']}' $sl>MikroTik: ".htmlspecialchars($rv["nama_nas"])."</option>";}?></select></div>
 <div class="card" style="border-left:5px solid #0284c7">
   <h4>Generate Voucher Hotspot Acak (Langsung Masuk ke MikroTik)</h4>
   <form method="POST" style="margin-top:8px">
-    <select name="paket_id" required><option value="">-- Pilih Paket Profil Hotspot --</option><?php $qp=mysqli_query($conn,"SELECT * FROM paket WHERE UPPER(tipe)='HOTSPOT' ORDER BY harga ASC"); while($pk=mysqli_fetch_assoc($qp))echo "<option value='$pk[id]'>$pk[nama_paket] - Rp ".number_format($pk['harga'],0,',','.')." ($pk[masa_aktif])</option>"; ?></select>
+    <select name="paket_id" required><option value="">-- Pilih Paket Profil Hotspot --</option><?php $qp=mysqli_query($conn,"SELECT p.* FROM paket p LEFT JOIN grup_profil g ON p.grup_id=g.id WHERE UPPER(p.tipe)='HOTSPOT' ".($f_rid>0?"AND g.router_id=$f_rid":"")." ORDER BY p.harga ASC"); while($pk=mysqli_fetch_assoc($qp))echo "<option value='$pk[id]'>$pk[nama_paket] - Rp ".number_format($pk['harga'],0,',','.')." ($pk[masa_aktif])</option>"; ?></select>
     <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px">
       <select name="tipe_kode" style="flex:1;min-width:130px"><option value="angka">Angka Saja (0-9)</option><option value="huruf">Huruf Saja (A-Z)</option><option value="campur">Huruf & Angka</option></select>
       <select name="panjang" style="width:90px"><option value="6">6 Digit</option><option value="7">7 Digit</option><option value="8" selected>8 Digit</option></select>
@@ -94,7 +97,7 @@ $filtered=array_filter($mt_list,function($u)use($fs,$fp,$fc){ if($fs!==''&&strip
     </div>
     <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px;align-items:center">
       <input name="komentar" placeholder="Comment (opsional)" style="flex:1;min-width:120px">
-      <select name="router_id" style="width:130px"><?php $qr=mysqli_query($conn,"SELECT * FROM routers ORDER BY id ASC"); while($rt=mysqli_fetch_assoc($qr))echo "<option value='$rt[id]'>$rt[nama_nas]</option>"; ?></select>
+      <select name="router_id" style="width:130px"><?php $qr=mysqli_query($conn,"SELECT * FROM routers ORDER BY id ASC"); while($rt=mysqli_fetch_assoc($qr))$sl_r=($f_rid==(int)$rt['id'])?'selected':''; echo "<option value='$rt[id]' $sl_r>$rt[nama_nas]</option>"; ?></select>
       <button name="gen_vcr" class="btn btn-g">+ Generate</button>
     </div>
   </form>
@@ -105,7 +108,7 @@ $filtered=array_filter($mt_list,function($u)use($fs,$fp,$fc){ if($fs!==''&&strip
     <div style="display:flex;gap:5px"><a href="cetak_voucher.php?mode=baru" target="_blank" class="btn" style="padding:5px 9px;font-size:11px">Default</a><a href="cetak_voucher.php?mode=semua&prof=<?= urlencode($fp) ?>" target="_blank" class="btn btn-g" style="padding:5px 9px;font-size:11px">QR Semua</a></div>
   </div>
   <form method="GET" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px">
-    <input type="hidden" name="page" value="voucher">
+    <input type="hidden" name="page" value="voucher"><input type="hidden" name="rid" value="<?= $f_rid ?>">
     <input name="q" value="<?= htmlspecialchars($fs) ?>" placeholder="Search..." style="flex:1;min-width:100px">
     <select name="prof" onchange="this.form.submit()" style="flex:1;min-width:95px"><option value="">Profile</option><?php foreach(array_keys($profiles_opt) as $o)echo "<option value='".htmlspecialchars($o)."' ".($fp===$o?'selected':'').">".htmlspecialchars($o)."</option>"; ?></select>
     <select name="cmt" onchange="this.form.submit()" style="flex:1;min-width:95px"><option value="">Comment</option><?php foreach(array_keys($comments_opt) as $o)echo "<option value='".htmlspecialchars($o)."' ".($fc===$o?'selected':'').">".htmlspecialchars($o)."</option>"; ?></select>

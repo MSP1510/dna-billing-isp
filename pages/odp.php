@@ -7,7 +7,7 @@ if (isset($_POST['add_odp'])) {
     $kap = (int)$_POST['kapasitas'];
     $lat = mysqli_real_escape_string($conn, str_replace(',', '.', trim($_POST['lat'])));
     $lng = mysqli_real_escape_string($conn, str_replace(',', '.', trim($_POST['lng'])));
-    mysqli_query($conn, "INSERT INTO odp (jenis,parent_id,nama_odp,lokasi,kapasitas,lat,lng) VALUES ('$jns',$pid,'$nm','$lok',$kap,'$lat','$lng')");
+    mysqli_query($conn, "INSERT INTO odp (router_id,jenis,parent_id,nama_odp,lokasi,kapasitas,lat,lng) VALUES (".(int)($_POST['router_id']??0).",'$jns',$pid,'$nm','$lok',$kap,'$lat','$lng')");
     echo "<script>location.href='?page=odp';</script>"; exit;
 }
 if (isset($_POST['save_pel_gis'])) {
@@ -29,7 +29,7 @@ if (isset($_GET['del_odp'])) {
 $online_ppp = []; $online_arp = [];
 $qr = mysqli_query($conn, "SELECT * FROM routers ORDER BY id ASC");
 while ($rt = mysqli_fetch_assoc($qr)) {
-    if ($api->connect($rt['ip_address'], $rt['username'], $rt['password'], $rt['port'])) {
+    $api->timeout = 1; if ($api->connect($rt['ip_address'], $rt['username'], $rt['password'], $rt['port'])) {
         $act = $api->comm('/ppp/active/print'); $cur = [];
         foreach ($act as $l) {
             if ($l == '!re') { if(!empty($cur['name'])) $online_ppp[$cur['name']] = true; $cur = []; }
@@ -46,11 +46,14 @@ while ($rt = mysqli_fetch_assoc($qr)) {
         $api->disconnect();
     }
 }
+$f_rid = isset($_GET['rid']) ? (int)$_GET['rid'] : 0;
+$w_odp = $f_rid > 0 ? "WHERE o.router_id=$f_rid" : "";
+$w_pel = $f_rid > 0 ? "AND p.router_id=$f_rid" : "";
 $odp_list = [];
-$qo = mysqli_query($conn, "SELECT o.*, (SELECT COUNT(id) FROM pelanggan p WHERE p.odp_id=o.id) as terpakai FROM odp o ORDER BY o.id ASC");
+$qo = mysqli_query($conn, "SELECT o.*, (SELECT COUNT(id) FROM pelanggan p WHERE p.odp_id=o.id) as terpakai FROM odp o $w_odp ORDER BY o.id ASC");
 while ($r = mysqli_fetch_assoc($qo)) $odp_list[] = $r;
 $pel_list = []; $cnt_on = 0; $cnt_off = 0; $cnt_iso = 0;
-$qp = mysqli_query($conn, "SELECT p.id, p.nama, p.pppoe_user, p.ip_static, p.tipe_layanan, p.status, p.odp_id, p.lat, p.lng, o.nama_odp FROM pelanggan p LEFT JOIN odp o ON p.odp_id=o.id WHERE p.nama NOT LIKE '<hotspot-%' ORDER BY p.nama ASC");
+$qp = mysqli_query($conn, "SELECT p.id, p.nama, p.pppoe_user, p.ip_static, p.tipe_layanan, p.status, p.odp_id, p.lat, p.lng, o.nama_odp FROM pelanggan p LEFT JOIN odp o ON p.odp_id=o.id WHERE p.nama NOT LIKE '<hotspot-%' $w_pel ORDER BY p.nama ASC");
 while ($p = mysqli_fetch_assoc($qp)) {
     $is_st = (($p['tipe_layanan'] ?? 'pppoe') == 'static');
     $is_on = $is_st ? (!empty($p['ip_static']) && isset($online_arp[trim($p['ip_static'])])) : (!empty($p['pppoe_user']) && isset($online_ppp[trim($p['pppoe_user'])]));
@@ -66,6 +69,7 @@ while ($p = mysqli_fetch_assoc($qp)) {
 <div class="card">
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
     <h4>1. Peta Satelit POP, ODC, ODP & Pelanggan</h4>
+<div style="margin-bottom:10px;"><select onchange="location.href='?page=odp&rid='+this.value" style="width:100%;padding:9px 12px;border-radius:8px;border:1px solid #cbd5e1;font-weight:700;font-size:13px;background:#f8fafc;color:#0f172a;"><option value="0">Peta: Semua MikroTik (Total Gabungan)</option><?php $qr_m=mysqli_query($conn,"SELECT id,nama_nas FROM routers ORDER BY id ASC");while($rm=mysqli_fetch_assoc($qr_m)){$sl=($f_rid==(int)$rm["id"])?"selected":"";echo "<option value='{$rm['id']}' $sl>Peta MikroTik: ".htmlspecialchars($rm["nama_nas"])."</option>";}?></select></div>
     <div><button type="button" onclick="setMode('sat')" class="btn" style="padding:4px 8px;font-size:11px">Satelit</button> <button type="button" onclick="setMode('osm')" class="btn btn-g" style="padding:4px 8px;font-size:11px">Jalan Raya</button></div>
   </div>
   <div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px">
@@ -79,7 +83,8 @@ while ($p = mysqli_fetch_assoc($qp)) {
 <div class="card" style="border-left:5px solid #0284c7;background:#f0f9ff">
   <h4>2. Daftarkan Server Utama (POP), Box ODC & Box ODP</h4>
   <form method="POST" style="margin-top:8px">
-    <select name="jenis"><option value="POP">Server Utama (POP)</option><option value="ODC">Box ODC (Distribusi)</option><option value="ODP" selected>Box ODP (Tiang Pelanggan)</option></select>
+    <select name="router_id" style="width:100%;margin-bottom:8px;"><?php $qr_f=mysqli_query($conn,"SELECT id,nama_nas FROM routers ORDER BY id ASC");while($rf=mysqli_fetch_assoc($qr_f)){$sl_f=($f_rid==(int)$rf['id'])?"selected":""; echo "<option value='{$rf['id']}' $sl_f>Router: ".htmlspecialchars($rf["nama_nas"])."</option>";}?></select>
+<select name="jenis"><option value="POP">Server Utama (POP)</option><option value="ODC">Box ODC (Distribusi)</option><option value="ODP" selected>Box ODP (Tiang Pelanggan)</option></select>
     <select name="parent_id"><option value="">-- Induk Jalur (POP / ODC) --</option><?php foreach($odp_list as $o) if(($o['jenis']??'ODP')!='ODP') echo "<option value='$o[id]'>[$o[jenis]] $o[nama_odp]</option>"; ?></select>
     <input name="nama_odp" placeholder="Nama (mis: POP-PUSAT / ODC-01 / ODP-01)" required>
     <input name="lokasi" placeholder="Alamat / Patokan Lokasi" required>
@@ -103,14 +108,14 @@ while ($p = mysqli_fetch_assoc($qp)) {
 <div class="card">
   <h4>4. Daftar Perangkat POP / ODC / ODP (<?= count($odp_list) ?>)</h4>
   <div style="overflow-x:auto"><table><tr><th>Tipe</th><th>Nama</th><th>Lokasi</th><th>Port</th><th>Aksi</th></tr>
-  <?php foreach($odp_list as $d): ?><tr><td><b><?= $d['jenis']??'ODP' ?></b></td><td><?= htmlspecialchars($d['nama_odp']) ?></td><td><?= htmlspecialchars($d['lokasi']) ?></td><td><?= $d['terpakai'] ?>/<?= $d['kapasitas'] ?></td><td><a href="?page=odp&del_odp=<?= $d['id'] ?>" class="btn btn-r" style="padding:3px 7px;font-size:10px">Hapus</a></td></tr><?php endforeach; ?>
+  <?php foreach($odp_list as $d): ?><tr><td><b><?= $d['jenis']??'ODP' ?></b></td><td><?= htmlspecialchars($d['nama_odp']) ?></td><td><?= htmlspecialchars($d['lokasi']) ?></td><td><?= $d['terpakai'] ?>/<?= $d['kapasitas'] ?></td><td><a href="?page=odp&rid=<?= $f_rid ?>&del_odp=<?= $d['id'] ?>" class="btn btn-r" style="padding:3px 7px;font-size:10px">Hapus</a></td></tr><?php endforeach; ?>
   </table></div>
 </div>
 <div class="card">
   <h4>5. Daftar Pelanggan & Koordinat (<?= count($pel_list) ?>)</h4>
   <div style="overflow-x:auto"><table><tr><th>Status</th><th>Nama Pelanggan</th><th>Jalur ODP</th><th>Koordinat</th><th>Aksi</th></tr>
   <?php foreach($pel_list as $p): $c=$p['st_net']=='online'?'#22c55e':($p['st_net']=='isolir'?'#ef4444':'#f59e0b'); ?>
-  <tr><td><span style="background:<?= $c ?>;color:#fff;padding:2px 6px;border-radius:4px;font-size:10px"><?= strtoupper($p['st_net']) ?></span></td><td><b><?= htmlspecialchars($p['nama']) ?></b><br><small><?= htmlspecialchars($p['akun']) ?></small></td><td><?= htmlspecialchars($p['nama_odp']??'-') ?></td><td style="font-size:11px"><?= !empty($p['lat'])?"$p[lat], $p[lng]":"Belum" ?></td><td><button type="button" onclick="pilihPelItem(<?= $p['id'] ?>);window.scrollTo({top:0,behavior:'smooth'})" class="btn btn-g" style="padding:4px 8px;font-size:11px">Set</button> <?php if(!empty($p['lat'])): ?><a href="?page=odp&reset_pel=<?= $p['id'] ?>" class="btn btn-r" style="padding:4px 8px;font-size:11px">Hapus</a><?php endif; ?></td></tr>
+  <tr><td><span style="background:<?= $c ?>;color:#fff;padding:2px 6px;border-radius:4px;font-size:10px"><?= strtoupper($p['st_net']) ?></span></td><td><b><?= htmlspecialchars($p['nama']) ?></b><br><small><?= htmlspecialchars($p['akun']) ?></small></td><td><?= htmlspecialchars($p['nama_odp']??'-') ?></td><td style="font-size:11px"><?= !empty($p['lat'])?"$p[lat], $p[lng]":"Belum" ?></td><td><button type="button" onclick="pilihPelItem(<?= $p['id'] ?>);window.scrollTo({top:0,behavior:'smooth'})" class="btn btn-g" style="padding:4px 8px;font-size:11px">Set</button> <?php if(!empty($p['lat'])): ?><a href="?page=odp&rid=<?= $f_rid ?>&reset_pel=<?= $p['id'] ?>" class="btn btn-r" style="padding:4px 8px;font-size:11px">Hapus</a><?php endif; ?></td></tr>
   <?php endforeach; ?></table></div>
 </div>
 <script>
@@ -120,7 +125,7 @@ const uSat=['https:','',['mt1','google','com'].join('.'),'vt','lyrs=y'+String.fr
 const uOsm=['https:','',['{s}','tile','openstreetmap','org'].join('.'),'{z}','{x}','{y}.png'].join('/');
 const lSat=L.tileLayer(uSat,{maxZoom:20}),lOsm=L.tileLayer(uOsm,{maxZoom:19});lSat.addTo(map);
 function setMode(m){if(m=='sat'){map.removeLayer(lOsm);lSat.addTo(map);}else{map.removeLayer(lSat);lOsm.addTo(map);}}
-function setF(f){flt=f;renderGis();}
+function setF(f){flt=f;renderGis();if(window.lg&&window.lg.getLayers().length>0){map.fitBounds(L.featureGroup(window.lg.getLayers()).getBounds(),{padding:[35,35],maxZoom:18});}}
 function ikon(bg,t,s){return L.divIcon({className:'',html:`<div class="pin-node" style="background:${bg};width:${s}px;height:${s}px">${t}</div>`,iconSize:[s,s],iconAnchor:[s/2,s/2]});}
 function renderGis(){
   if(window.lg)map.removeLayer(window.lg);window.lg=L.layerGroup().addTo(map);const nm={};
@@ -128,7 +133,7 @@ function renderGis(){
   nodes.forEach(n=>{if(n.parent_id&&nm[n.id]&&nm[n.parent_id])L.polyline([nm[n.parent_id],nm[n.id]],{color:'#38bdf8',weight:4}).addTo(window.lg);});
   custs.forEach(c=>{if(flt!=='all'&&c.st_net!==flt)return;const la=parseFloat(c.lat),ln=parseFloat(c.lng);if(isNaN(la)||isNaN(ln))return;const cl=c.st_net=='online'?'#22c55e':(c.st_net=='isolir'?'#ef4444':'#f59e0b');L.marker([la,ln],{icon:ikon(cl,'&#8962;',22)}).bindPopup(`<b>${c.nama}</b>`).addTo(window.lg);if(c.odp_id&&nm[c.odp_id])L.polyline([nm[c.odp_id],[la,ln]],c.st_net=='online'?{color:'#22c55e',weight:3,className:'kabel-online'}:{color:cl,weight:2,dashArray:'5,5'}).addTo(window.lg);});
 }
-renderGis();let pin=null;
+renderGis();if(window.lg&&window.lg.getLayers().length>0){map.fitBounds(L.featureGroup(window.lg.getLayers()).getBounds(),{padding:[35,35],maxZoom:18});}let pin=null;
 map.on('click',e=>{const la=e.latlng.lat.toFixed(6),ln=e.latlng.lng.toFixed(6);window.lastLat=la;window.lastLng=ln;document.getElementById('lat_pel').value=la;document.getElementById('lng_pel').value=ln;document.getElementById('lat_odp').value=la;document.getElementById('lng_odp').value=ln;document.getElementById('st_gps_odp').innerText='✓ Titik Peta Siap';document.getElementById('st_gps_pel').innerText='✓ Titik Rumah Siap';if(pin)map.removeLayer(pin);pin=L.marker([la,ln],{icon:ikon('#ef4444','PIN',26)}).addTo(map);});
 function cariPelVis(){const q=document.getElementById('cariDropPel').value.toLowerCase().trim(),b=document.getElementById('hasilCariPel');if(!q){b.style.display='none';return;}const r=custs.filter(c=>c.nama.toLowerCase().includes(q)||(c.akun||'').toLowerCase().includes(q));b.innerHTML=r.length?r.map(c=>`<div onclick="pilihPelItem(${c.id})" style="padding:9px;border-bottom:1px solid #f1f5f9;font-size:12px"><b>${c.nama}</b> (${c.akun})</div>`).join(''):'<div style="padding:8px;font-size:12px">Tidak ditemukan</div>';b.style.display='block';}
 function pilihPelItem(id){const c=custs.find(x=>x.id==id);if(!c)return;document.getElementById('hid_pel_id').value=c.id;document.getElementById('cariDropPel').value=c.nama+' ('+c.akun+')';document.getElementById('hasilCariPel').style.display='none';document.getElementById('badgePelOk').innerText='✓ Terpilih: '+c.nama;document.getElementById('sel_pel_odp').value=c.odp_id||'';if(c.lat&&c.lng){document.getElementById('lat_pel').value=c.lat;document.getElementById('lng_pel').value=c.lng;map.setView([parseFloat(c.lat),parseFloat(c.lng)],18);}else if(window.lastLat){document.getElementById('lat_pel').value=window.lastLat;document.getElementById('lng_pel').value=window.lastLng;}}

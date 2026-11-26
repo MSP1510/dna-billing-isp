@@ -1,7 +1,25 @@
 <?php
+if (isset($_GET["auto_logout"])) {
+    if (session_status() === PHP_SESSION_NONE) session_start();
+    $t = $_SESSION["proxy_target"] ?? "";
+    $p = $_SESSION["proxy_port"] ?? 80;
+    if ($t !== "") {
+        foreach (["/action/logout.html", "/logout.asp", "/logout.cgi", "/goform/Logout"] as $lp) {
+            $ch = curl_init("http://$t:$p$lp");
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_TIMEOUT, 2);
+            @curl_exec($ch); curl_close($ch);
+        }
+    }
+    @unlink("/tmp/proxy_cookie_" . session_id() . ".txt");
+    exit;
+}
+?>
+<?php
 require 'core/config.php';
 if (empty($_SESSION['user_id'])) die("Silakan login ke D.N.A_Billing terlebih dahulu.");
 
+if (isset($_GET['oid'])) { $_SESSION['proxy_oid'] = (int)$_GET['oid']; }
 if (isset($_GET['set_target'])) {
     $_SESSION['remote_target'] = trim($_GET['set_target']);
     $_SESSION['remote_port']   = (int)($_GET['port'] ?? 80);
@@ -27,7 +45,7 @@ curl_setopt($ch, CURLOPT_HEADER, true);
 curl_setopt($ch, CURLOPT_FOLLOWLOCATION, false);
 curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
 curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
-curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 5);
+curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 10);
 curl_setopt($ch, CURLOPT_TIMEOUT, 15);
 curl_setopt($ch, CURLOPT_COOKIEJAR, "/tmp/ont_ck_" . md5($target) . ".txt");
 curl_setopt($ch, CURLOPT_COOKIEFILE, "/tmp/ont_ck_" . md5($target) . ".txt");
@@ -40,6 +58,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
+
+if (!empty($_SERVER["PHP_AUTH_USER"])) {
+    curl_setopt($ch, CURLOPT_USERPWD, $_SERVER["PHP_AUTH_USER"] . ":" . ($_SERVER["PHP_AUTH_PW"] ?? ""));
+} elseif (isset($conn)) {
+    $_qo = @mysqli_query($conn, "SELECT username, password FROM olt WHERE id=" . (int)($_GET["oid"] ?? ($_SESSION["proxy_oid"] ?? 0)) . " OR ip_address='" . mysqli_real_escape_string($conn, $target) . "' LIMIT 1");
+    if ($_qo && $_ro = mysqli_fetch_assoc($_qo)) {
+        if (!empty($_ro["username"])) curl_setopt($ch, CURLOPT_USERPWD, $_ro["username"] . ":" . ($_ro["password"] ?? ""));
+    }
+}
 $resp = curl_exec($ch);
 if ($resp === false) {
     $err = curl_error($ch);

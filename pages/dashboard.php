@@ -56,11 +56,44 @@ $sisa_saldo = $tot_masuk - $tot_keluar;
 .dna-tbl th{text-align:left;color:#8b949e;padding-bottom:8px;border-bottom:1px solid #21262d}
 .dna-tbl td{padding:8px 4px;border-bottom:1px solid #1c2128}
 .dna-ring{width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;border:2px solid #38bdf8;margin-left:auto}
+
+.dna-row4 > .dna-card:nth-child(1) { background: #00994d !important; color: #fff !important; border: none !important; }
+.dna-row4 > .dna-card:nth-child(2) { background: #d94326 !important; color: #fff !important; border: none !important; }
+.dna-row4 > .dna-card:nth-child(3) { background: #00a8d6 !important; color: #fff !important; border: none !important; }
+.dna-row4 > .dna-card:nth-child(4) { background: #e89b15 !important; color: #fff !important; border: none !important; }
+.dna-row4 > .dna-card * { color: #ffffff !important; }
+
+.dna-card * { opacity: 1 !important; }
+div[style*="color:#e2e8f0"], span[style*="color:#e2e8f0"] { color: #cbd5e1 !important; }
+#val-ppp-off, #ppp-off { color: #ffffff !important; }
+.dna-wrap > div[style*="color:#0f172a"], .dna-wrap h3, .dna-wrap div[style*="font-weight:700"] { color: #f8fafc !important; }
+
+.dna-card div[style*="background:#0d1117"], .dna-card div[style*="background:#161b22"] { color: #f8fafc !important; }
+.dna-card div[style*="background:#0d1117"] *:not([style*="#4ade80"]):not([style*="#f87171"]):not([style*="#38bdf8"]):not([style*="#fbbf24"]):not([style*="#10b981"]):not([style*="#ef4444"]) { color: #e2e8f0 !important; }
+
+.dna-g3 > div > div { color: #f8fafc !important; }
+
+.dna-box:nth-child(2) small, #ppp-off { color: #ffffff !important; }
+
+.dna-g3 .dna-card > div:first-child { color: #64748b !important; }
+.dna-g3 .dna-card:nth-child(1) > div:nth-child(2), .dna-g3 .dna-card:nth-child(2) > div:nth-child(2) { color: #0284c7 !important; }
+.dna-g3 .dna-card:nth-child(3) > div:nth-child(2) { color: #16a34a !important; }
+
+body, .main-content, .content, .dna-wrap { background: #f1f5f9 !important; }
+.dna-wrap > div > div[style*="font-weight:700"], .dna-wrap h3 { color: #0f172a !important; }
+.dna-wrap > div > div[style*="font-size:12px"] { color: #64748b !important; }
+
+.dna-card:has(#scope-router) > div > div:first-child { color: #0f172a !important; }
+.dna-card:has(#scope-router) > div > div:last-child { color: #64748b !important; }
+
+.dna-row2 > .dna-card { width: 100% !important; box-sizing: border-box !important; }
+.dna-card:has(#hs-on) > div:has(> .dna-box) { display: grid !important; grid-template-columns: repeat(2, 1fr) !important; gap: 10px !important; }
+.dna-box { min-height: 76px !important; padding: 12px 6px !important; }
 </style>
 <div class="dna-wrap">
   <!-- BARIS 1: ARUS KAS & PEMASANGAN BARU BULANAN -->
   <div class="dna-row4">
-    <div class="dna-card" style="border-left:3px solid #10b981">
+        <div class="dna-card" style="border-left:3px solid #10b981">
       <div class="dna-lbl"><span>Arus Kas Masuk</span><span style="color:#10b981">▲ IN</span></div>
       <div class="dna-num" style="color:#4ade80">Rp <?= number_format($tot_masuk,0,',','.') ?></div>
       <small style="color:#8b949e">Total pemasukan tercatat</small>
@@ -84,8 +117,10 @@ $sisa_saldo = $tot_masuk - $tot_keluar;
 
   <!-- BARIS 2: RINCIAN PELANGGAN PPPOE & HOTSPOT VOUCHER -->
   <div class="dna-row2">
-    <div class="dna-card">
-      <div class="dna-lbl"><strong style="color:#f0f6fc;font-size:14px">Pelanggan PPPoE</strong><span id="ppp-tot" style="color:#8b949e">Total: 0</span></div>
+    <div class="dna-card" style="margin-bottom:12px;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;">
+<div class="dna-card" style="margin-bottom:12px;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;"><div><div style="font-weight:700;font-size:13px;color:#0f172a;">Sumber Data PPPoE, Hotspot & Paket</div><div style="font-size:11px;color:#64748b;">Pilih semua router atau rincian per MikroTik</div></div><select id="scope-router" style="padding:8px 12px;border-radius:8px;border:1px solid #cbd5e1;font-weight:700;font-size:13px;color:#0f172a;background:#fff;"><option value="all">Semua Router (Total Gabungan)</option><?php $q=mysqli_query($conn,"SELECT id,nama_nas FROM routers ORDER BY id ASC");while($r=mysqli_fetch_assoc($q))echo "<option value='{$r['id']}'>MikroTik: ".htmlspecialchars($r['nama_nas'])."</option>";?></select></div>
+<div class="dna-card">
+      <div class="dna-lbl"><strong style="color:#0f172a;font-size:14px">Pelanggan PPPoE</strong><span id="ppp-tot" style="color:#8b949e">Total: 0</span></div>
       <div class="dna-sub-grid">
         <div class="dna-box"><small style="color:#4ade80">● Online</small><div id="ppp-on" style="font-size:20px;font-weight:700;color:#4ade80;margin-top:4px">0</div></div>
         <div class="dna-box"><small style="color:#475569">● Offline</small><div id="ppp-off" style="font-size:20px;font-weight:700;color:#334155;margin-top:4px">0</div></div>
@@ -93,8 +128,8 @@ $sisa_saldo = $tot_masuk - $tot_keluar;
       </div>
     </div>
     <div class="dna-card">
-      <div class="dna-lbl"><strong style="color:#f0f6fc;font-size:14px">Hotspot Voucher</strong><span id="hs-tot" style="color:#8b949e">Total: 0</span></div>
-      <div class="dna-sub-grid" style="grid-template-columns:repeat(2,1fr)">
+      <div class="dna-lbl"><strong style="color:#0f172a;font-size:14px">Hotspot Voucher</strong><span id="hs-tot" style="color:#8b949e">Total: 0</span></div>
+      <div class="dna-sub-grid" style="grid-template-columns:repeat(3,1fr)">
         <div class="dna-box"><small style="color:#38bdf8">● Voucher Online</small><div id="hs-on" style="font-size:20px;font-weight:700;color:#38bdf8;margin-top:4px">0</div></div>
         <div class="dna-box"><small style="color:#f59e0b">● Offline / Stok</small><div id="hs-off" style="font-size:20px;font-weight:700;color:#fbbf24;margin-top:4px">0</div></div>
       </div>
@@ -103,7 +138,7 @@ $sisa_saldo = $tot_masuk - $tot_keluar;
 
   <!-- BARIS 3: TRAFFIC LIVE & INTERFACES (DIPINDAHKAN KE BAWAH) -->
   <div class="dna-top">
-    <div><h3 style="margin:0;font-size:17px;color:#f0f6fc">Interfaces &amp; Traffic Live</h3><small style="color:#8b949e">Real-time bandwidth &amp; profil aktif router terpilih</small></div>
+    <div><h3 style="margin:0;font-size:17px;color:#0f172a">Interfaces &amp; Traffic Live</h3><small style="color:#8b949e">Real-time bandwidth &amp; profil aktif router terpilih</small></div>
     <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
       <select id="sel-router" class="dna-sel"><?php foreach($router_list as $rt): ?><option value="<?= $rt['id'] ?>"><?= htmlspecialchars($rt['nama_nas']) ?></option><?php endforeach; ?></select>
       <select id="sel-iface" class="dna-sel"><option value="">Memuat interface...</option></select>
@@ -178,7 +213,7 @@ $sisa_saldo = $tot_masuk - $tot_keluar;
     if(!rs)return;
     const rid=rs.value,ifc=(lastRid===rid&&is)?is.value:'';
     busy=true;
-    fetch(`api_traffic.php?router_id=${encodeURIComponent(rid)}&iface=${encodeURIComponent(ifc)}`)
+    fetch(`api_traffic.php?scope=`+(document.getElementById(`scope-router`)?document.getElementById(`scope-router`).value:`all`)+`&router_id=${encodeURIComponent(rid)}&iface=${encodeURIComponent(ifc)}`)
     .then(r=>r.json()).then(d=>{
       const bg=document.getElementById('status-badge');
       bg.textContent=d.status==='Online'?'● Online':'● Offline';
@@ -207,7 +242,7 @@ $sisa_saldo = $tot_masuk - $tot_keluar;
       if(d.packages&&d.packages.length){
         tb.innerHTML=d.packages.map(p=>{
           const pr=Math.round((p.online/Math.max(1,p.total))*100);
-          return `<tr><td><strong style="color:#f0f6fc">${p.name}</strong></td><td><div style="font-size:11px;color:#8b949e;margin-bottom:3px">${p.online}/${p.total} (${pr}%)</div><div class="dna-trk"><div class="dna-fil" style="width:${pr}%;background:#38bdf8"></div></div></td><td><div class="dna-ring">${p.online}</div></td></tr>`;
+          return `<tr><td><strong style="color:#0f172a">${p.name}</strong></td><td><div style="font-size:11px;color:#8b949e;margin-bottom:3px">${p.online}/${p.total} (${pr}%)</div><div class="dna-trk"><div class="dna-fil" style="width:${pr}%;background:#38bdf8"></div></div></td><td><div class="dna-ring">${p.online}</div></td></tr>`;
         }).join('');
       } else {
         tb.innerHTML='<tr><td colspan="3" style="color:#8b949e;text-align:center;padding:14px">Tidak ada paket PPPoE ditemukan</td></tr>';
@@ -216,6 +251,6 @@ $sisa_saldo = $tot_masuk - $tot_keluar;
   }
   document.getElementById('sel-router').addEventListener('change',()=>{lastRid=null;sync();});
   document.getElementById('sel-iface').addEventListener('change',sync);
-  sync();setInterval(sync,3000);
+  document.getElementById("scope-router")?.addEventListener("change",sync);sync();setInterval(sync,3000);
 })();
 </script>

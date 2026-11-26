@@ -1,4 +1,8 @@
-<?php cekAkses(['owner','admin','teknisi']);
+<?php
+$f_rid = isset($_GET['rid']) ? (int)$_GET['rid'] : 0;
+$w_rt = $f_rid > 0 ? "WHERE id=$f_rid" : "ORDER BY id ASC";
+$w_pl = $f_rid > 0 ? "AND router_id=$f_rid" : "";
+ cekAkses(['owner','admin','teknisi']);
 function durasiDetik($str) {
     $d = 0;
     if (preg_match('/(\d+)w/', $str, $m)) $d += (int)$m * 604800;
@@ -25,9 +29,9 @@ while ($vx = mysqli_fetch_assoc($q_exp)) {
 }
 
 $online_ppp = []; $online_arp = []; $hs_online = [];
-$qr = mysqli_query($conn, "SELECT * FROM routers ORDER BY id ASC");
+$qr = mysqli_query($conn, "SELECT * FROM routers ".$w_rt."");
 while ($rt = mysqli_fetch_assoc($qr)) {
-    if ($api->connect($rt['ip_address'], $rt['username'], $rt['password'], $rt['port'])) {
+    $api->timeout = 1; if ($api->connect($rt['ip_address'], $rt['username'], $rt['password'], $rt['port'])) {
         // PPPoE Active
         $cur = [];
         foreach ($api->comm('/ppp/active/print') as $l) {
@@ -110,10 +114,11 @@ while ($p = mysqli_fetch_assoc($qp)) {
 </div>
 <?php endif; ?>
 
+<div class="card" style="margin-bottom:12px;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;"><b style="font-size:13px;color:#0f172a;">Filter Router MikroTik</b><select onchange="location.href='?page=monitor&rid='+this.value" style="padding:8px 12px;border-radius:8px;border:1px solid #cbd5e1;font-weight:700;font-size:13px;background:#fff;color:#0f172a;"><option value="0">Semua Router (Total Gabungan)</option><?php $qr_f=mysqli_query($conn,"SELECT id,nama_nas FROM routers ORDER BY id ASC");while($rf=mysqli_fetch_assoc($qr_f)){ $sl=($f_rid==(int)$rf["id"])?"selected":""; echo "<option value='{$rf['id']}' $sl>MikroTik: ".htmlspecialchars($rf["nama_nas"])."</option>"; } ?></select></div>
 <div class="card" style="border-top:4px solid #0284c7">
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
     <h4>1. Pelanggan PPPoE (<?= count($list_ppp) ?> Total)</h4>
-    <a href="?page=monitor" class="btn" style="padding:4px 8px;font-size:11px">Refresh & Bersihkan Expired</a>
+    <a href="?page=monitor&rid=<?= $f_rid ?>" class="btn" style="padding:4px 8px;font-size:11px">Refresh Data</a>
   </div>
   <div style="overflow-x:auto"><table>
     <tr><th>Status</th><th>Nama Pelanggan</th><th>Akun PPPoE</th><th>IP & Uptime</th><th>Jalur ODP</th></tr>
@@ -135,14 +140,4 @@ while ($p = mysqli_fetch_assoc($qp)) {
   </table></div>
 </div>
 
-<div class="card" style="border-top:4px solid #f59e0b">
-  <h4>3. Voucher Hotspot Online (<?= count($hs_online) ?> Aktif)</h4>
-  <small style="color:#64748b">User Hotspot yang sudah habis durasinya otomatis dihapus dari MikroTik dan database saat halaman dimuat.</small>
-  <div style="overflow-x:auto;margin-top:8px"><table>
-    <tr><th>Router</th><th>Kode / User Hotspot</th><th>IP Address</th><th>Uptime</th><th>Sisa Durasi</th></tr>
-    <?php foreach($hs_online as $h): ?>
-    <tr><td><?= htmlspecialchars($h['router']) ?></td><td><b><?= htmlspecialchars($h['user']) ?></b></td><td><?= htmlspecialchars($h['ip']??'-') ?></td><td><?= htmlspecialchars($h['up']??'-') ?></td><td><span style="background:#fef3c7;color:#92400e;padding:2px 6px;border-radius:4px;font-size:10px;font-weight:700"><?= htmlspecialchars($h['left']??'Unlimited') ?></span></td></tr>
-    <?php endforeach; ?>
-    <?php if(empty($hs_online)) echo "<tr><td colspan='5' style='text-align:center;color:#64748b'>Tidak ada voucher Hotspot aktif</td></tr>"; ?>
-  </table></div>
-</div>
+

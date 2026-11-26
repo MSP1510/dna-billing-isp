@@ -1,7 +1,8 @@
+<?php $f_rid=isset($_GET["rid"])?(int)$_GET["rid"]:0; ?><div class="card" style="margin-bottom:12px;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;"><b style="font-size:13px;color:#0f172a;">Filter Router MikroTik</b><select onchange="location.href='?page=tagihan&rid='+this.value" style="padding:8px 12px;border-radius:8px;border:1px solid #cbd5e1;font-weight:700;font-size:13px;background:#fff;color:#0f172a;"><option value="0">Semua Router (Total Gabungan)</option><?php $qrt=mysqli_query($conn,"SELECT id,nama_nas FROM routers ORDER BY id ASC");while($rt=mysqli_fetch_assoc($qrt)){$sl=($f_rid==(int)$rt["id"])?"selected":"";echo "<option value='{$rt['id']}' $sl>MikroTik: ".htmlspecialchars($rt["nama_nas"])."</option>";}?></select></div>
 
 <div class="card" style="border-left:5px solid #f59e0b;background:#fffbeb">
   <h4>Broadcast WhatsApp Massal, Jadwal & Info Gangguan Jaringan (Per ODP / Pusat)</h4>
-  <form method="POST" style="margin-top:8px">
+  <form method="POST" action="?page=tagihan&rid=<?= $f_rid ?>" style="margin-top:8px">
     <input name="judul_bc" placeholder="Judul Broadcast (mis: Info Gangguan ODP-01 / Pemeliharaan)" required>
     <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px">
       <select name="target_tipe" id="tgt_bc" onchange="document.getElementById('box_odp_bc').style.display=(this.value=='odp')?'block':'none'" style="flex:1;min-width:170px">
@@ -33,9 +34,9 @@
   </form>
   <div style="overflow-x:auto;margin-top:10px"><table>
     <tr><th>Waktu Jadwal</th><th>Judul</th><th>Target</th><th>Status</th><th>Terkirim</th><th>Aksi</th></tr>
-    <?php $q_wj=mysqli_query($conn,"SELECT w.*, o.nama_odp FROM wa_jadwal w LEFT JOIN odp o ON w.odp_id=o.id ORDER BY w.id DESC LIMIT 10");
-    while($wj=mysqli_fetch_assoc($q_wj)): $tg_lbl = ($wj['target_tipe']=='odp') ? "ODP: ".($wj['nama_odp']??'-') : strtoupper($wj['target_tipe']); ?>
-    <tr><td style="font-size:11px"><?= $wj['jadwal_kirim'] ?></td><td><b><?= htmlspecialchars($wj['judul']) ?></b></td><td><small><?= htmlspecialchars($tg_lbl) ?></small></td><td><span style="background:<?= $wj['status']=='terkirim'?'#22c55e':'#f59e0b' ?>;color:#fff;padding:2px 6px;border-radius:4px;font-size:10px"><?= strtoupper($wj['status']) ?></span></td><td><?= $wj['total_terkirim'] ?> WA</td><td><a href="?page=tagihan&del_bc=<?= $wj['id'] ?>" class="btn btn-r" style="padding:2px 6px;font-size:10px">Hapus</a></td></tr>
+    <?php $q_wj=mysqli_query($conn,"SELECT w.*, o.nama_odp AS nama_odp FROM wa_jadwal w LEFT JOIN odp o ON w.odp_id=o.id ORDER BY w.id DESC LIMIT 10");
+    if($q_wj) while($wj=mysqli_fetch_assoc($q_wj)): $tg_lbl = ($wj['target_tipe']=='odp') ? "ODP: ".($wj['nama_odp']??'-') : strtoupper($wj['target_tipe']); ?>
+    <tr><td style="font-size:11px"><?= $wj['jadwal_kirim'] ?></td><td><b><?= htmlspecialchars($wj['judul']) ?></b></td><td><small><?= htmlspecialchars($tg_lbl) ?></small></td><td><span style="background:<?= $wj['status']=='terkirim'?'#22c55e':'#f59e0b' ?>;color:#fff;padding:2px 6px;border-radius:4px;font-size:10px"><?= strtoupper($wj['status']) ?></span></td><td><?= $wj['total_terkirim'] ?> WA</td><td><a href="?page=tagihan&rid=<?= $f_rid ?>&del_bc=<?= $wj['id'] ?>" class="btn btn-r" style="padding:2px 6px;font-size:10px">Hapus</a></td></tr>
     <?php endwhile; ?>
   </table></div>
 </div>
@@ -82,7 +83,7 @@ if (isset($_POST['simpan_bc_wa'])) {
 }
 if (isset($_GET['del_bc'])) {
     mysqli_query($conn, "DELETE FROM wa_jadwal WHERE id=".(int)$_GET['del_bc']);
-    echo "<script>location.href='?page=tagihan';</script>"; exit;
+    echo "<script>location.href='?page=tagihan&rid='.$f_rid.'';</script>"; exit;
 }
 
 if (isset($_POST['gen_massal'])) {
@@ -126,7 +127,7 @@ if (isset($_GET['wa'])) {
 }
 
 if (isset($_GET['wa_blast'])) {
-    $q = mysqli_query($conn, "SELECT t.*, p.nama, p.no_wa, p.kode_pel, p.jatuh_tempo FROM tagihan t JOIN pelanggan p ON t.pelanggan_id=p.id WHERE t.status='belum_bayar'");
+    $q = mysqli_query($conn, "SELECT t.*, p.nama, p.no_wa, p.kode_pel, p.jatuh_tempo FROM tagihan t JOIN pelanggan p ON t.pelanggan_id=p.id WHERE t.status='belum_bayar' ".($f_rid>0?"AND p.router_id=$f_rid":"")."");
     $sent = 0;
     while($t = mysqli_fetch_assoc($q)) {
         kirimWA($conn, $t['no_wa'], formatPesanWA($cfg['tpl_tagihan'], $t));
@@ -146,7 +147,7 @@ if (isset($_POST['bayar_lunas'])) {
         $t['jatuh_tempo'] = date('Y-m-d', strtotime('+30 days'));
         if (isset($_POST['kirim_struk'])) kirimWA($conn, $t['no_wa'], formatPesanWA($cfg['tpl_lunas'], $t));
     }
-    echo "<script>location.href='?page=tagihan';</script>"; exit;
+    echo "<script>location.href='?page=tagihan&rid='.$f_rid.'';</script>"; exit;
 }
 
 if (isset($_POST['kirim_info_jaringan'])) {
@@ -171,17 +172,17 @@ if (isset($_POST['save_tpl']) && $role == 'owner') {
     $t3 = mysqli_real_escape_string($conn, $_POST['t3']);
     $t4 = mysqli_real_escape_string($conn, $_POST['t4']);
     mysqli_query($conn, "UPDATE pengaturan SET tpl_tagihan='$t1', tpl_lunas='$t2', tpl_gangguan='$t3', tpl_normal='$t4' WHERE id=1");
-    echo "<script>location.href='?page=tagihan';</script>"; exit;
+    echo "<script>location.href='?page=tagihan&rid='.$f_rid.'';</script>"; exit;
 }
 if (isset($_GET['del_inv']) && $role == 'owner') {
     mysqli_query($conn, "DELETE FROM tagihan WHERE id=".(int)$_GET['del_inv']);
-    echo "<script>location.href='?page=tagihan';</script>"; exit;
+    echo "<script>location.href='?page=tagihan&rid='.$f_rid.'';</script>"; exit;
 }
 ?>
 <?php
 $flt = $_GET['flt'] ?? 'all';
-$tot_blm = mysqli_fetch_assoc(mysqli_query($conn,"SELECT SUM(jumlah) as t, COUNT(id) as c FROM tagihan WHERE status='belum_bayar'"));
-$tot_lns = mysqli_fetch_assoc(mysqli_query($conn,"SELECT SUM(jumlah) as t, COUNT(id) as c FROM tagihan WHERE status='lunas'"));
+$tot_blm = mysqli_fetch_assoc(mysqli_query($conn,"SELECT SUM(jumlah) as t, COUNT(id) as c FROM tagihan t JOIN pelanggan p ON t.pelanggan_id=p.id WHERE t.status='belum_bayar' ".($f_rid>0?"AND p.router_id=$f_rid":"").""));
+$tot_lns = mysqli_fetch_assoc(mysqli_query($conn,"SELECT SUM(jumlah) as t, COUNT(id) as c FROM tagihan t JOIN pelanggan p ON t.pelanggan_id=p.id WHERE t.status='lunas' ".($f_rid>0?"AND p.router_id=$f_rid":"").""));
 ?>
 <div class="tiles">
   <div class="tile t-yellow"><h2>Rp <?= number_format($tot_blm['t']??0) ?></h2><p>Belum Bayar (<?= $tot_blm['c']??0 ?> Invoice)</p></div>
@@ -190,7 +191,7 @@ $tot_lns = mysqli_fetch_assoc(mysqli_query($conn,"SELECT SUM(jumlah) as t, COUNT
 
 <div class="card" style="border-left:4px solid #f39c12">
   <h4>Broadcast Pemberitahuan Gangguan & Perbaikan Selesai</h4>
-  <form method="POST" style="margin-top:8px;display:flex;flex-wrap:wrap;gap:6px;align-items:center">
+  <form method="POST" action="?page=tagihan&rid=<?= $f_rid ?>" style="margin-top:8px;display:flex;flex-wrap:wrap;gap:6px;align-items:center">
     <select name="jenis_info">
       <option value="gangguan">Info Gangguan (Sedang Dikerjakan Teknisi)</option>
       <option value="normal">Info Normal (Perbaikan Selesai)</option>
@@ -205,9 +206,9 @@ $tot_lns = mysqli_fetch_assoc(mysqli_query($conn,"SELECT SUM(jumlah) as t, COUNT
 </div>
 <div class="card">
   <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:12px">
-    <form method="POST" style="margin:0;display:flex;gap:6px;flex-wrap:wrap">
+    <form method="POST" action="?page=tagihan&rid=<?= $f_rid ?>" style="margin:0;display:flex;gap:6px;flex-wrap:wrap">
       <button name="gen_massal" class="btn">+ Generate Tagihan (<?= $bln_ini ?>)</button>
-      <a href="?page=tagihan&wa_blast=1" onclick="return confirm('Kirim tagihan WA ke semua pelanggan yang belum bayar?')" class="btn btn-g">Broadcast WA Belum Bayar</a>
+      <a href="?page=tagihan&rid=<?= $f_rid ?>&wa_blast=1" onclick="return confirm('Kirim tagihan WA ke semua pelanggan yang belum bayar?')" class="btn btn-g">Broadcast WA Belum Bayar</a>
       <a href="?page=tagihan&flt=all" class="btn" style="background:#475569">Semua</a>
       <a href="?page=tagihan&flt=belum_bayar" class="btn btn-w">Belum Bayar</a>
       <a href="?page=tagihan&flt=lunas" class="btn btn-g">Lunas</a>
@@ -216,9 +217,9 @@ $tot_lns = mysqli_fetch_assoc(mysqli_query($conn,"SELECT SUM(jumlah) as t, COUNT
   </div>
 
   <?php if($role == 'owner'): ?>
-  <details style="margin-bottom:14px;background:#f8fafc;padding:10px;border-radius:6px;border:1px solid #e2e8f0">
+  <details open style="margin-bottom:14px;background:#f8fafc;padding:10px;border-radius:6px;border:1px solid #e2e8f0">
     <summary style="cursor:pointer;font-weight:700;color:#0284c7">Pengaturan Template Pesan WhatsApp (Khusus Owner)</summary>
-    <form method="POST" style="margin-top:10px">
+    <form method="POST" action="?page=tagihan&rid=<?= $f_rid ?>" style="margin-top:10px">
       <small>Variabel tersedia: <code>{nama} {id_pel} {invoice} {periode} {nominal} {jatuh_tempo} {metode}</code></small><br><br>
       <label style="font-size:12px;font-weight:700">Template Tagihan Terbit:</label>
       <textarea name="t1" rows="4" style="width:100%;padding:8px;border:1px solid #cbd5e1;border-radius:4px"><?= htmlspecialchars($cfg['tpl_tagihan']??'') ?></textarea>
@@ -238,7 +239,7 @@ $tot_lns = mysqli_fetch_assoc(mysqli_query($conn,"SELECT SUM(jumlah) as t, COUNT
     <tr><th>No Invoice</th><th>Pelanggan</th><th>Periode</th><th>Nominal</th><th>Status</th><th>Pembayaran</th><th>PDF Lunas</th><th>Aksi</th></tr>
     <?php
     $w = ($flt != 'all') ? "WHERE t.status='$flt'" : "";
-    $q = mysqli_query($conn,"SELECT t.*, p.nama, p.no_wa, p.kode_pel FROM tagihan t JOIN pelanggan p ON t.pelanggan_id=p.id $w ORDER BY t.id DESC");
+    $q = mysqli_query($conn,"SELECT t.*, p.nama, p.no_wa, p.kode_pel FROM tagihan t JOIN pelanggan p ON t.pelanggan_id=p.id ".($f_rid>0?($w?$w." AND p.router_id=$f_rid":"WHERE p.router_id=$f_rid"):$w)." ORDER BY t.id DESC");
     while($d = mysqli_fetch_assoc($q)):
       $st = $d['status']=='lunas' ? "<span style='background:#00a65a;color:#fff;padding:2px 6px;border-radius:4px;font-size:10px;font-weight:700'>LUNAS</span>" : "<span style='background:#dd4b39;color:#fff;padding:2px 6px;border-radius:4px;font-size:10px;font-weight:700'>BELUM BAYAR</span>";
     ?>
@@ -251,14 +252,14 @@ $tot_lns = mysqli_fetch_assoc(mysqli_query($conn,"SELECT SUM(jumlah) as t, COUNT
       <td style="font-size:11px"><?= $d['status']=='lunas' ? "$d[metode_bayar]<br><small>$d[tgl_bayar] ($d[admin_nama])</small>" : '-' ?></td>
       <td style="white-space:nowrap"><a href="cetak_invoice_pdf.php?pel_id=<?= $t['pelanggan_id'] ?>&tgh_id=<?= $t['id'] ?>" target="_blank" class="btn" style="padding:3px 7px;font-size:10px">Lihat PDF</a> <a href="?page=tagihan&kirim_pdf_wa=<?= $t['id'] ?>" class="btn btn-g" style="padding:3px 7px;font-size:10px">Kirim PDF WA</a></td>
 <td style="white-space:nowrap">
-        <a href="?page=tagihan&wa=<?= $d['id'] ?>" class="btn btn-g" style="padding:4px 8px;font-size:11px">Kirim WA</a>
+        <a href="?page=tagihan&rid=<?= $f_rid ?>&wa=<?= $d['id'] ?>" class="btn btn-g" style="padding:4px 8px;font-size:11px">Kirim WA</a>
         <?php if($d['status']=='belum_bayar'): ?>
           <button type="button" onclick="bukaBayar(<?= $d['id'] ?>,'<?= addslashes($d['nama']) ?>','<?= number_format($d['jumlah']) ?>')" class="btn" style="padding:4px 8px;font-size:11px">Bayar</button>
         <?php else: ?>
           <button type="button" onclick="cetakStruk('<?= $d['no_invoice'] ?>','<?= addslashes($d['nama']) ?>','<?= $d['bulan_tahun'] ?>','<?= number_format($d['jumlah']) ?>','<?= $d['metode_bayar'] ?>','<?= $d['tgl_bayar'] ?>')" class="btn btn-w" style="padding:4px 8px;font-size:11px">Struk</button>
         <?php endif; ?>
         <?php if($role=='owner'): ?>
-          <a href="?page=tagihan&del_inv=<?= $d['id'] ?>" onclick="return confirm('Hapus invoice ini?')" class="btn btn-r" style="padding:4px 8px;font-size:11px">Hapus</a>
+          <a href="?page=tagihan&rid=<?= $f_rid ?>&del_inv=<?= $d['id'] ?>" onclick="return confirm('Hapus invoice ini?')" class="btn btn-r" style="padding:4px 8px;font-size:11px">Hapus</a>
         <?php endif; ?>
       </td>
     </tr>
@@ -272,7 +273,7 @@ $tot_lns = mysqli_fetch_assoc(mysqli_query($conn,"SELECT SUM(jumlah) as t, COUNT
   <div class="card" style="width:100%;max-width:360px">
     <h4>Konfirmasi Pelunasan Tagihan</h4>
     <p id="lblPel" style="margin:8px 0;font-size:13px;color:#475569"></p>
-    <form method="POST">
+    <form method="POST" action="?page=tagihan&rid=<?= $f_rid ?>">
       <input type="hidden" name="id_t" id="inpIdT">
       <label style="font-size:12px;font-weight:700">Metode Pembayaran:</label>
       <select name="metode" style="width:100%;margin-bottom:10px">
