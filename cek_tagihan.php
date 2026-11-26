@@ -3,6 +3,11 @@ error_reporting(0);
 require_once __DIR__ . "/core/config.php";
 $cfg = mysqli_fetch_assoc(mysqli_query($conn, "SELECT * FROM pengaturan LIMIT 1")) ?: [];
 $nama_isp = $cfg['nama_isp'] ?? 'D.N.A_Billing';
+$logo_src = "";
+foreach (["uploads/logo.png","uploads/logo.jpg","uploads/logo.webp","assets/logo.png","assets/img/logo.png"] as $lp) {
+    if (file_exists(__DIR__."/".$lp)) { $logo_src = $lp . "?v=" . filemtime(__DIR__."/".$lp); break; }
+}
+if (!$logo_src && !empty($cfg["logo"]) && file_exists(__DIR__."/".$cfg["logo"])) { $logo_src = $cfg["logo"]; }
 $bank = $cfg['info_bank'] ?? '-';
 $ewallet = $cfg['info_ewallet'] ?? '-';
 $qris = $cfg['url_qris'] ?? '';
@@ -38,7 +43,7 @@ if ($q !== '') {
 <title>Portal Pelanggan - <?= htmlspecialchars($nama_isp) ?></title>
 <style>
   *{box-sizing:border-box;font-family:'Segoe UI',system-ui,-apple-system,sans-serif;margin:0;padding:0}
-  body{background:radial-gradient(circle at top,#1e293b,#090d16);color:#f8fafc;padding:18px 14px 40px;min-height:100vh;display:flex;flex-direction:column;align-items:center}
+  body{background:radial-gradient(circle at top,#1e293b,#090d16);color:#f8fafc;padding:18px 16px 40px;overflow-x:hidden;min-height:100vh;display:flex;flex-direction:column;align-items:center}
   .wrap{width:100%;max-width:450px}
   .hero{text-align:center;margin-bottom:18px}
   .logo-badge{width:56px;height:56px;border-radius:16px;background:linear-gradient(135deg,#0284c7,#38bdf8);display:inline-flex;align-items:center;justify-content:center;font-size:26px;box-shadow:0 8px 20px rgba(56,189,248,0.3);margin-bottom:10px}
@@ -68,7 +73,7 @@ if ($q !== '') {
 <body>
 <div class="wrap">
   <div class="hero">
-    <div class="logo-badge">&#128246;</div>
+    <?php if ($logo_src): ?><img src="<?= htmlspecialchars($logo_src) ?>" style="width:74px;height:74px;object-fit:contain;border-radius:18px;background:rgba(255,255,255,0.08);padding:6px;margin-bottom:10px;box-shadow:0 8px 20px rgba(0,0,0,0.35)" alt="Logo"><?php else: ?><div class="logo-badge"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.55a11 11 0 0 1 14.08 0"/><path d="M1.42 9a16 16 0 0 1 21.16 0"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><line x1="12" y1="20" x2="12.01" y2="20"/></svg></div><?php endif; ?>
     <h1><?= htmlspecialchars($nama_isp) ?></h1>
     <div class="sub">Layanan Cek Tagihan & Pembayaran Mandiri</div>
   </div>
