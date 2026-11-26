@@ -1,10 +1,3 @@
-<style>
-.dna-grid4 > div:nth-child(1),.dna-kpi-grid > div:nth-child(1){background:linear-gradient(135deg,#065f46,#047857) !important;border:1px solid rgba(52,211,153,0.45) !important;}
-.dna-grid4 > div:nth-child(2),.dna-kpi-grid > div:nth-child(2){background:linear-gradient(135deg,#7f1d1d,#b91c1c) !important;border:1px solid rgba(248,113,113,0.45) !important;}
-.dna-grid4 > div:nth-child(3),.dna-kpi-grid > div:nth-child(3){background:linear-gradient(135deg,#1e3a8a,#0284c7) !important;border:1px solid rgba(56,189,248,0.45) !important;}
-.dna-grid4 > div:nth-child(4),.dna-kpi-grid > div:nth-child(4){background:linear-gradient(135deg,#78350f,#b45309) !important;border:1px solid rgba(251,191,36,0.45) !important;}
-.dna-grid4 > div *,.dna-kpi-grid > div *{color:#ffffff !important;}
-</style>
 <?php
 $routers_q = mysqli_query($conn, "SELECT id, nama_nas, ip_address FROM routers ORDER BY id ASC");
 $router_list = [];
@@ -90,17 +83,12 @@ $sisa_saldo = $tot_masuk - $tot_keluar;
   </div>
 
   <!-- BARIS 2: RINCIAN PELANGGAN PPPOE & HOTSPOT VOUCHER -->
-  
-
-  </div>
-</div>
-
-<div class="dna-row2">
+  <div class="dna-row2">
     <div class="dna-card">
       <div class="dna-lbl"><strong style="color:#f0f6fc;font-size:14px">Pelanggan PPPoE</strong><span id="ppp-tot" style="color:#8b949e">Total: 0</span></div>
       <div class="dna-sub-grid">
         <div class="dna-box"><small style="color:#4ade80">● Online</small><div id="ppp-on" style="font-size:20px;font-weight:700;color:#4ade80;margin-top:4px">0</div></div>
-        <div class="dna-box"><small style="color:#94a3b8">● Offline</small><div id="ppp-off" style="font-size:20px;font-weight:700;color:#cbd5e1;margin-top:4px">0</div></div>
+        <div class="dna-box"><small style="color:#475569">● Offline</small><div id="ppp-off" style="font-size:20px;font-weight:700;color:#334155;margin-top:4px">0</div></div>
         <div class="dna-box"><small style="color:#f87171">● Isolir</small><div id="ppp-iso" style="font-size:20px;font-weight:700;color:#f87171;margin-top:4px">0</div></div>
       </div>
     </div>
@@ -215,15 +203,7 @@ $sisa_saldo = $tot_masuk - $tot_keluar;
       gauge('needle-rx','bar-rx','pct-rx',d.rx,maxMbps);
       gauge('needle-online','bar-online','pct-online',totOn,totAll);
 
-      
-const rpFmt = n => "Rp " + Math.round(n||0).toLocaleString("id-ID");
-if(document.getElementById("kas-total")){
-  document.getElementById("kas-total").textContent = rpFmt(d.kas_total);
-  document.getElementById("kas-masuk").textContent = rpFmt(d.kas_masuk);
-  document.getElementById("kas-keluar").textContent = rpFmt(d.kas_keluar);
-}
-
-const tb=document.getElementById('pkg-table-body');
+      const tb=document.getElementById('pkg-table-body');
       if(d.packages&&d.packages.length){
         tb.innerHTML=d.packages.map(p=>{
           const pr=Math.round((p.online/Math.max(1,p.total))*100);
