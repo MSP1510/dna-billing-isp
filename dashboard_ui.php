@@ -48,7 +48,11 @@ th,td{padding:9px;border-bottom:1px solid #e2e8f0;text-align:left}th{background:
 
 @media(min-width:769px){}
 
-#dnaTopHeader{position:sticky !important;top:0 !important;z-index:950 !important;background:#fff !important;box-shadow:0 2px 10px rgba(0,0,0,0.08) !important;padding:8px 12px !important;margin:0 0 12px 0 !important;border-radius:0 0 10px 10px !important;}
+
+
+#dnaTopHeader{position:fixed !important;top:0 !important;left:0 !important;right:0 !important;z-index:990 !important;background:#fff !important;box-shadow:0 2px 10px rgba(0,0,0,0.12) !important;padding:10px 12px !important;margin:0 !important;}
+body{padding-top:66px !important;}
+@media(min-width:769px){#dnaTopHeader{left:230px !important;}}
 </style></head><body>
 
 <div id="dnaLoader"><img src="/assets/icon-192.png" class="spin-logo" alt="Loading"></div>
